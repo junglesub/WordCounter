@@ -296,6 +296,20 @@
       letter-spacing: -0.05em;
     }
 
+    .stat-value-inline {
+      display: flex;
+      align-items: baseline;
+      gap: 8px;
+      flex-wrap: wrap;
+    }
+
+    .stat-total {
+      color: var(--muted);
+      font-family: var(--font-body);
+      font-size: 14px;
+      letter-spacing: 0;
+    }
+
     .stat-input {
       width: 100%;
       border: 1px solid var(--line);
@@ -618,7 +632,10 @@
       <section class="stats">
         <article class="stat">
           <p class="stat-label">공백 포함</p>
-          <p class="stat-value" id="countWithSpaces">0</p>
+          <div class="stat-value-inline">
+            <p class="stat-value" id="countWithSpaces">0</p>
+            <span class="stat-total" id="countWithSpacesTotal"></span>
+          </div>
         </article>
         <article class="stat">
           <p class="stat-label">공백 제외</p>
@@ -670,6 +687,7 @@
     const deleteButton = document.getElementById("deleteButton");
     const highlightOverflowToggle = document.getElementById("highlightOverflowToggle");
     const countWithSpaces = document.getElementById("countWithSpaces");
+    const countWithSpacesTotal = document.getElementById("countWithSpacesTotal");
     const countWithoutSpaces = document.getElementById("countWithoutSpaces");
     const wordCount = document.getElementById("wordCount");
     const maxLengthInput = document.getElementById("maxLengthInput");
@@ -930,6 +948,7 @@
       const limit = current ? sanitizeLimit(current.maxLength) : null;
 
       countWithSpaces.textContent = formatNumber(withSpaces);
+      countWithSpacesTotal.textContent = limit ? "/" + formatNumber(limit) : "";
       countWithoutSpaces.textContent = formatNumber(withoutSpaces);
       wordCount.textContent = formatNumber(words);
       renderHighlight(text, limit);
