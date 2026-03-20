@@ -34,6 +34,7 @@
 
     html, body {
       margin: 0;
+      height: 100%;
       min-height: 100%;
     }
 
@@ -49,9 +50,10 @@
     .app {
       display: grid;
       grid-template-columns: 320px minmax(0, 1fr);
+      height: 100%;
       min-height: 100vh;
       gap: 22px;
-      padding: 24px;
+      padding: 0;
     }
 
     .sidebar,
@@ -63,11 +65,17 @@
     }
 
     .sidebar {
-      border-radius: var(--radius-xl);
+      border-radius: 0;
       padding: 24px 18px 18px;
       display: flex;
       flex-direction: column;
       gap: 18px;
+      position: relative;
+      z-index: 3;
+    }
+
+    .sidebar-backdrop {
+      display: none;
     }
 
     .brand {
@@ -182,7 +190,7 @@
     }
 
     .workspace {
-      border-radius: 34px;
+      border-radius: 0;
       width: min(100%, 900px);
       justify-self: center;
       padding: 24px;
@@ -255,9 +263,13 @@
       border-color: rgba(176, 96, 58, 0.36);
     }
 
+    .mobile-only {
+      display: none;
+    }
+
     .stats {
       display: grid;
-      grid-template-columns: repeat(4, minmax(0, 1fr));
+      grid-template-columns: repeat(3, minmax(0, 1fr)) minmax(220px, 1.15fr);
       gap: 10px;
     }
 
@@ -342,6 +354,16 @@
       margin-top: 6px;
     }
 
+    .stat-row .stat-input {
+      flex: 0 0 14ch;
+      width: 14ch;
+      min-width: 14ch;
+    }
+
+    .stat-row .mini-button {
+      flex: 0 0 auto;
+    }
+
     .stat-head {
       display: flex;
       align-items: center;
@@ -377,6 +399,7 @@
     .editor-stack {
       position: relative;
       flex: 1;
+      height: 100%;
       min-height: 0;
     }
 
@@ -436,7 +459,7 @@
       font-size: 13px;
     }
 
-    @media (max-width: 980px) {
+    @media (max-width: 1249px) {
       body {
         overflow: auto;
       }
@@ -446,38 +469,104 @@
         min-height: auto;
       }
 
-      .sidebar,
-      .workspace {
-        min-height: auto;
+      .mobile-only {
+        display: inline-flex;
       }
 
-      .doc-list {
-        max-height: 260px;
+      .sidebar {
+        position: fixed;
+        top: 16px;
+        left: 16px;
+        bottom: 16px;
+        width: min(360px, calc(100vw - 32px));
+        max-width: calc(100vw - 32px);
+        display: flex;
+        transform: translateX(calc(-100% - 24px));
+        transition: transform 180ms ease;
+      }
+
+      .sidebar.is-open {
+        transform: translateX(0);
+      }
+
+      .sidebar-backdrop {
+        position: fixed;
+        inset: 0;
+        background: rgba(47, 36, 28, 0.24);
+        backdrop-filter: blur(6px);
+        display: block;
+        opacity: 0;
+        pointer-events: none;
+        transition: opacity 180ms ease;
+        z-index: 2;
+      }
+
+      .sidebar-backdrop.is-open {
+        opacity: 1;
+        pointer-events: auto;
+      }
+
+      .workspace {
+        min-height: auto;
       }
     }
 
     @media (max-width: 720px) {
       .app {
-        padding: 14px;
+        padding: 0;
         gap: 14px;
       }
 
       .sidebar,
       .workspace {
-        border-radius: 24px;
+        border-radius: 0;
       }
 
       .workspace {
         padding: 18px;
       }
 
-      .topbar {
-        flex-direction: column;
-        align-items: stretch;
+      .stats {
+        display: flex;
+        flex-wrap: nowrap;
+        gap: 8px;
+        overflow-x: auto;
+        padding-bottom: 2px;
       }
 
-      .stats {
-        grid-template-columns: 1fr;
+      .stats::-webkit-scrollbar {
+        height: 6px;
+      }
+
+      .stat {
+        flex: 0 0 auto;
+        min-width: max-content;
+        border-radius: 999px;
+        padding: 8px 10px;
+        display: flex;
+        align-items: center;
+        gap: 8px;
+      }
+
+      .stat-label {
+        margin: 0;
+      }
+
+      .stat-value {
+        font-size: 18px;
+        line-height: 1;
+      }
+
+      .stat-head {
+        gap: 6px;
+      }
+
+      .stat-row {
+        margin-top: 0;
+      }
+
+      .stat-help {
+        display: none;
       }
 
       .editor-shell {
@@ -486,7 +575,8 @@
       }
 
       .editor {
-        min-height: 52vh;
+        height: 100%;
+        min-height: 0;
         font-size: 17px;
       }
 
@@ -510,6 +600,7 @@
       <div class="section-label">Saved Drafts</div>
       <div class="doc-list" id="docList"></div>
     </aside>
+    <button class="sidebar-backdrop" id="sidebarBackdrop" type="button" aria-label="사이드바 닫기"></button>
 
     <main class="workspace">
       <div class="topbar">
@@ -518,6 +609,7 @@
           <div class="status" id="saveStatus">로컬에 자동저장됩니다.</div>
         </div>
         <div class="toolbar">
+          <button class="ghost-button mobile-only" id="toggleSidebarButton" type="button" aria-pressed="false">Drafts</button>
           <button class="ghost-button" id="duplicateButton" type="button">복제</button>
           <button class="ghost-button" id="deleteButton" type="button">삭제</button>
         </div>
@@ -558,8 +650,9 @@
             placeholder="지원 동기, 경험, 강점, 배운 점을 차분하게 정리해 보세요."
           ></textarea>
         </div>
-        <div class="empty-state">입력할 때마다 자동으로 저장됩니다. 브라우저를 닫아도 이 기기에서는 다시 불러올 수 있습니다.</div>
       </section>
+
+      <div class="empty-state">입력할 때마다 자동으로 저장됩니다. 브라우저를 닫아도 이 기기에서는 다시 불러올 수 있습니다.</div>
     </main>
   </div>
 
@@ -568,8 +661,11 @@
     const titleInput = document.getElementById("titleInput");
     const editor = document.getElementById("editor");
     const docList = document.getElementById("docList");
+    const sidebar = document.querySelector(".sidebar");
+    const sidebarBackdrop = document.getElementById("sidebarBackdrop");
     const saveStatus = document.getElementById("saveStatus");
     const newDocButton = document.getElementById("newDocButton");
+    const toggleSidebarButton = document.getElementById("toggleSidebarButton");
     const duplicateButton = document.getElementById("duplicateButton");
     const deleteButton = document.getElementById("deleteButton");
     const highlightOverflowToggle = document.getElementById("highlightOverflowToggle");
@@ -585,6 +681,7 @@
     let currentId = documents[0]?.id || null;
     let saveTimer = null;
     let highlightOverflowEnabled = false;
+    let sidebarOpen = false;
 
     if (!documents.length) {
       const firstDoc = createDocument();
@@ -608,6 +705,11 @@
     });
 
     editor.addEventListener("scroll", () => {
+      syncHighlightScroll();
+    });
+
+    window.addEventListener("resize", () => {
+      applySidebarState();
       syncHighlightScroll();
     });
 
@@ -657,6 +759,16 @@
       highlightOverflowEnabled = !highlightOverflowEnabled;
       applyHighlightMode();
       updateCounts(editor.value);
+    });
+
+    toggleSidebarButton.addEventListener("click", () => {
+      sidebarOpen = !sidebarOpen;
+      applySidebarState();
+    });
+
+    sidebarBackdrop.addEventListener("click", () => {
+      sidebarOpen = false;
+      applySidebarState();
     });
 
     newDocButton.addEventListener("click", () => {
@@ -801,6 +913,8 @@
         button.addEventListener("click", () => {
           currentId = doc.id;
           render();
+          sidebarOpen = false;
+          applySidebarState();
           saveStatus.textContent = "저장된 글을 불러왔습니다.";
         });
 
@@ -874,6 +988,15 @@
       syncHighlightScroll();
     }
 
+    function applySidebarState() {
+      const mobile = window.innerWidth < 1250;
+      const active = mobile && sidebarOpen;
+      sidebar.classList.toggle("is-open", active);
+      sidebarBackdrop.classList.toggle("is-open", active);
+      toggleSidebarButton.classList.toggle("active", active);
+      toggleSidebarButton.setAttribute("aria-pressed", active ? "true" : "false");
+    }
+
     function renderHighlight(text, limit) {
       if (!highlightOverflowEnabled) {
         editorHighlight.innerHTML = "";
@@ -920,6 +1043,8 @@
         .replace(/"/g, "&quot;")
         .replace(/'/g, "&#39;");
     }
+
+    applySidebarState();
   </script>
 </body>
 </html>
