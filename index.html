@@ -210,8 +210,8 @@
       background: transparent;
       color: var(--ink);
       font-family: var(--font-display);
-      font-size: clamp(28px, 3.4vw, 46px);
-      line-height: 1.08;
+      font-size: clamp(24px, 2.9vw, 38px);
+      line-height: 1.12;
       letter-spacing: -0.035em;
       padding: 0;
     }
@@ -247,21 +247,21 @@
 
     .stats {
       display: grid;
-      grid-template-columns: repeat(3, minmax(0, 1fr));
-      gap: 14px;
+      grid-template-columns: repeat(4, minmax(0, 1fr));
+      gap: 10px;
     }
 
     .stat {
       background: var(--panel-strong);
       border: 1px solid rgba(255, 255, 255, 0.7);
       border-radius: var(--radius-lg);
-      padding: 16px 18px;
+      padding: 12px 14px;
     }
 
     .stat-label {
-      margin: 0 0 8px;
+      margin: 0 0 6px;
       color: var(--muted);
-      font-size: 12px;
+      font-size: 11px;
       letter-spacing: 0.12em;
       text-transform: uppercase;
       font-weight: 700;
@@ -270,8 +270,61 @@
     .stat-value {
       margin: 0;
       font-family: var(--font-display);
-      font-size: clamp(28px, 3vw, 40px);
+      font-size: clamp(24px, 2.5vw, 34px);
       letter-spacing: -0.05em;
+    }
+
+    .stat-input {
+      width: 100%;
+      border: 1px solid var(--line);
+      border-radius: 12px;
+      background: rgba(255, 255, 255, 0.78);
+      color: var(--ink);
+      font: inherit;
+      font-size: 13px;
+      padding: 7px 10px;
+      outline: none;
+    }
+
+    .stat-input:focus {
+      border-color: rgba(176, 96, 58, 0.42);
+      box-shadow: 0 0 0 4px var(--accent-soft);
+    }
+
+    .stat-help {
+      margin: 0;
+      color: var(--muted);
+      font-size: 11px;
+      line-height: 1.5;
+    }
+
+    .mini-button {
+      border: 1px solid var(--line);
+      background: rgba(255, 255, 255, 0.72);
+      color: var(--ink);
+      border-radius: 999px;
+      padding: 7px 10px;
+      font: inherit;
+      font-size: 11px;
+      font-weight: 700;
+      cursor: pointer;
+      white-space: nowrap;
+    }
+
+    .mini-button:hover {
+      border-color: var(--line-strong);
+      background: rgba(255, 255, 255, 0.9);
+    }
+
+    .stat-help.warning {
+      color: #9d3f1f;
+    }
+
+    .stat-row {
+      display: flex;
+      gap: 6px;
+      align-items: center;
+      margin-top: 6px;
     }
 
     .editor-shell {
@@ -412,6 +465,14 @@
           <p class="stat-label">단어 수</p>
           <p class="stat-value" id="wordCount">0</p>
         </article>
+        <article class="stat">
+          <p class="stat-label">최대 글자 수</p>
+          <div class="stat-row">
+            <input class="stat-input" id="maxLengthInput" type="number" min="1" step="1" placeholder="제한 없음">
+            <button class="mini-button" id="useCurrentCountButton" type="button">현재 글자수</button>
+          </div>
+          <p class="stat-help" id="limitHelp">공백 포함 기준입니다. 비워두면 제한하지 않습니다.</p>
+        </article>
       </section>
 
       <section class="editor-shell">
@@ -427,7 +488,6 @@
 
   <script>
     const STORAGE_KEY = "wordcounter-documents-v1";
-
     const titleInput = document.getElementById("titleInput");
     const editor = document.getElementById("editor");
     const docList = document.getElementById("docList");
@@ -438,6 +498,9 @@
     const countWithSpaces = document.getElementById("countWithSpaces");
     const countWithoutSpaces = document.getElementById("countWithoutSpaces");
     const wordCount = document.getElementById("wordCount");
+    const maxLengthInput = document.getElementById("maxLengthInput");
+    const useCurrentCountButton = document.getElementById("useCurrentCountButton");
+    const limitHelp = document.getElementById("limitHelp");
 
     let documents = loadDocuments();
     let currentId = documents[0]?.id || null;
@@ -461,6 +524,44 @@
       updateCounts(editor.value);
       touchCurrentDocument();
       queueSave("자동저장 대기 중...");
+    });
+
+    maxLengthInput.addEventListener("input", () => {
+      const current = getCurrentDocument();
+      if (!current) {
+        return;
+      }
+
+      const value = sanitizeLimit(maxLengthInput.value);
+      maxLengthInput.value = value ? String(value) : "";
+      current.maxLength = value;
+      updateCounts(editor.value);
+      touchCurrentDocument();
+      queueSave(value ? "최대 글자 수가 저장되었습니다." : "글자 수 제한이 해제되었습니다.");
+    });
+
+    useCurrentCountButton.addEventListener("click", () => {
+      const current = getCurrentDocument();
+      if (!current) {
+        return;
+      }
+
+      const currentLength = editor.value.length;
+      if (!currentLength) {
+        current.maxLength = null;
+        maxLengthInput.value = "";
+        updateCounts(editor.value);
+        saveStatus.textContent = "현재 글이 비어 있어 최대 글자 수를 설정하지 않았습니다.";
+        touchCurrentDocument();
+        queueSave("글자 수 제한이 해제되었습니다.");
+        return;
+      }
+
+      current.maxLength = currentLength;
+      maxLengthInput.value = String(currentLength);
+      updateCounts(editor.value);
+      touchCurrentDocument();
+      queueSave("현재 글자 수를 최대값으로 저장했습니다.");
     });
 
     newDocButton.addEventListener("click", () => {
@@ -513,7 +614,14 @@
       try {
         const raw = localStorage.getItem(STORAGE_KEY);
         const parsed = raw ? JSON.parse(raw) : [];
-        return Array.isArray(parsed) ? parsed : [];
+        if (!Array.isArray(parsed)) {
+          return [];
+        }
+
+        return parsed.map((doc) => ({
+          ...doc,
+          maxLength: sanitizeLimit(doc.maxLength)
+        }));
       } catch (error) {
         return [];
       }
@@ -529,6 +637,7 @@
         id: crypto.randomUUID(),
         title: "새 자기소개서",
         content: "",
+        maxLength: null,
         createdAt: now.toISOString(),
         updatedAt: now.toISOString()
       };
@@ -575,7 +684,8 @@
 
       titleInput.value = current.title;
       editor.value = current.content;
-      updateCounts(current.content);
+      maxLengthInput.value = current.maxLength ? String(current.maxLength) : "";
+      updateCounts(editor.value);
       saveStatus.textContent = "로컬에 자동저장됩니다.";
     }
 
@@ -606,10 +716,40 @@
       const withSpaces = text.length;
       const withoutSpaces = text.replace(/\s/g, "").length;
       const words = text.trim() ? text.trim().split(/\s+/).length : 0;
+      const current = getCurrentDocument();
+      const limit = current ? sanitizeLimit(current.maxLength) : null;
 
       countWithSpaces.textContent = formatNumber(withSpaces);
       countWithoutSpaces.textContent = formatNumber(withoutSpaces);
       wordCount.textContent = formatNumber(words);
+
+      if (!limit) {
+        limitHelp.textContent = "공백 포함 기준입니다. 비워두면 제한하지 않습니다.";
+        limitHelp.classList.remove("warning");
+        return;
+      }
+
+      if (withSpaces > limit) {
+        limitHelp.textContent = "최대 글자 수를 " + formatNumber(withSpaces - limit) + "자 초과했습니다.";
+        limitHelp.classList.add("warning");
+        return;
+      }
+
+      limitHelp.textContent = "공백 포함 기준으로 " + formatNumber(limit - withSpaces) + "자 남았습니다.";
+      limitHelp.classList.remove("warning");
+    }
+
+    function sanitizeLimit(value) {
+      if (value === "" || value === null || typeof value === "undefined") {
+        return null;
+      }
+
+      const number = Number(value);
+      if (!Number.isFinite(number) || number < 1) {
+        return null;
+      }
+
+      return Math.floor(number);
     }
 
     function formatDate(isoString) {
