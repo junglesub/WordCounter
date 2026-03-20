@@ -716,6 +716,17 @@
         hideCursorInOverviewRuler: true,
         renderLineHighlight: "none",
         scrollBeyondLastLine: false,
+        quickSuggestions: false,
+        suggestOnTriggerCharacters: false,
+        wordBasedSuggestions: "off",
+        inlineSuggest: {
+          enabled: false
+        },
+        parameterHints: {
+          enabled: false
+        },
+        snippetSuggestions: "none",
+        tabCompletion: "off",
         occurrencesHighlight: "off",
         selectionHighlight: false,
         wordWrap: "on",
@@ -743,6 +754,11 @@
         touchCurrentDocument(text);
         queueSave("자동저장 대기 중...");
       });
+
+      monacoEditor.addCommand(
+        window.monaco.KeyMod.CtrlCmd | window.monaco.KeyCode.Space,
+        () => {}
+      );
 
       render();
     });
