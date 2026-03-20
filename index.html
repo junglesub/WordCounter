@@ -310,6 +310,11 @@
       letter-spacing: 0;
     }
 
+    .stat-value.is-over-limit,
+    .stat-total.is-over-limit {
+      color: #9d3f1f;
+    }
+
     .stat-input {
       width: 100%;
       border: 1px solid var(--line);
@@ -999,17 +1004,23 @@
       updateOverflowDecorations();
 
       if (!limit) {
+        countWithSpaces.classList.remove("is-over-limit");
+        countWithSpacesTotal.classList.remove("is-over-limit");
         limitHelp.textContent = "공백 포함 기준입니다. 비워두면 제한하지 않습니다.";
         limitHelp.classList.remove("warning");
         return;
       }
 
       if (withSpaces > limit) {
+        countWithSpaces.classList.add("is-over-limit");
+        countWithSpacesTotal.classList.add("is-over-limit");
         limitHelp.textContent = "최대 글자 수를 " + formatNumber(withSpaces - limit) + "자 초과했습니다.";
         limitHelp.classList.add("warning");
         return;
       }
 
+      countWithSpaces.classList.remove("is-over-limit");
+      countWithSpacesTotal.classList.remove("is-over-limit");
       limitHelp.textContent = "공백 포함 기준으로 " + formatNumber(limit - withSpaces) + "자 남았습니다.";
       limitHelp.classList.remove("warning");
     }
