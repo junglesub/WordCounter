@@ -410,61 +410,34 @@
       overflow: hidden;
     }
 
-    .editor-stack {
-      position: relative;
+    .editor-host {
       flex: 1;
       height: 100%;
       min-height: 0;
     }
 
-    .editor-highlight {
-      position: absolute;
-      inset: 0;
-      overflow: hidden;
-      pointer-events: none;
-      white-space: pre-wrap;
-      word-break: break-word;
+    .editor-host .monaco-editor,
+    .editor-host .overflow-guard {
+      height: 100%;
+      background: transparent;
       color: var(--ink);
-      font: 18px/2 var(--font-body);
-      padding: 2px calc(6px + var(--highlight-scrollbar-width, 0px)) 2px 2px;
-      tab-size: 2;
     }
 
-    .editor-highlight.is-hidden {
-      display: none;
+    .editor-host .monaco-editor,
+    .editor-host .monaco-editor-background,
+    .editor-host .margin {
+      outline: none;
+      background: transparent !important;
     }
 
-    .editor-highlight .overflow {
+    .editor-host .view-lines {
+      font-family: var(--font-body);
+    }
+
+    .editor-host .cm-overflowText {
       background: rgba(202, 62, 38, 0.18);
       color: #892c1b;
       border-radius: 4px;
-    }
-
-    .editor {
-      position: relative;
-      z-index: 1;
-      flex: 1;
-      width: 100%;
-      height: 100%;
-      resize: none;
-      border: 0;
-      outline: none;
-      background: transparent;
-      color: var(--ink);
-      font: 18px/2 var(--font-body);
-      padding: 2px 6px 2px 2px;
-      overflow: auto;
-      scrollbar-gutter: stable;
-      tab-size: 2;
-    }
-
-    .editor::placeholder {
-      color: #aa9684;
-    }
-
-    .editor.highlight-mode {
-      color: transparent;
-      caret-color: var(--ink);
     }
 
     .empty-state {
@@ -588,13 +561,7 @@
         border-radius: 20px;
       }
 
-      .editor {
-        height: 100%;
-        min-height: 0;
-        font-size: 17px;
-      }
-
-      .editor-highlight {
+      .editor-host .view-lines {
         font-size: 17px;
       }
     }
@@ -624,6 +591,7 @@
         </div>
         <div class="toolbar">
           <button class="ghost-button mobile-only" id="toggleSidebarButton" type="button" aria-pressed="false">Drafts</button>
+          <button class="ghost-button" id="occurrenceHighlightToggle" type="button" aria-pressed="false">단어 강조</button>
           <button class="ghost-button" id="duplicateButton" type="button">복제</button>
           <button class="ghost-button" id="deleteButton" type="button">삭제</button>
         </div>
@@ -659,24 +627,19 @@
       </section>
 
       <section class="editor-shell">
-        <div class="editor-stack">
-          <div class="editor-highlight is-hidden" id="editorHighlight" aria-hidden="true"></div>
-          <textarea
-            class="editor"
-            id="editor"
-            placeholder="지원 동기, 경험, 강점, 배운 점을 차분하게 정리해 보세요."
-          ></textarea>
-        </div>
+        <div class="editor-host" id="editor"></div>
       </section>
 
       <div class="empty-state">입력할 때마다 자동으로 저장됩니다. 브라우저를 닫아도 이 기기에서는 다시 불러올 수 있습니다.</div>
     </main>
   </div>
 
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/monaco-editor/0.52.2/min/vs/loader.min.js"></script>
   <script>
     const STORAGE_KEY = "wordcounter-documents-v1";
+    const MONACO_BASE = "https://cdnjs.cloudflare.com/ajax/libs/monaco-editor/0.52.2/min/vs";
     const titleInput = document.getElementById("titleInput");
-    const editor = document.getElementById("editor");
+    const editorHost = document.getElementById("editor");
     const docList = document.getElementById("docList");
     const sidebar = document.querySelector(".sidebar");
     const sidebarBackdrop = document.getElementById("sidebarBackdrop");
@@ -685,6 +648,7 @@
     const toggleSidebarButton = document.getElementById("toggleSidebarButton");
     const duplicateButton = document.getElementById("duplicateButton");
     const deleteButton = document.getElementById("deleteButton");
+    const occurrenceHighlightToggle = document.getElementById("occurrenceHighlightToggle");
     const highlightOverflowToggle = document.getElementById("highlightOverflowToggle");
     const countWithSpaces = document.getElementById("countWithSpaces");
     const countWithSpacesTotal = document.getElementById("countWithSpacesTotal");
@@ -693,13 +657,16 @@
     const maxLengthInput = document.getElementById("maxLengthInput");
     const useCurrentCountButton = document.getElementById("useCurrentCountButton");
     const limitHelp = document.getElementById("limitHelp");
-    const editorHighlight = document.getElementById("editorHighlight");
 
     let documents = loadDocuments();
     let currentId = documents[0]?.id || null;
     let saveTimer = null;
+    let occurrenceHighlightEnabled = false;
     let highlightOverflowEnabled = false;
     let sidebarOpen = false;
+    let monacoEditor = null;
+    let overflowDecorations = [];
+    let isSyncingEditor = false;
 
     if (!documents.length) {
       const firstDoc = createDocument();
@@ -708,31 +675,83 @@
       persistDocuments();
     }
 
-    render();
+    window.require.config({
+      paths: {
+        vs: MONACO_BASE
+      }
+    });
+
+    window.require(["vs/editor/editor.main"], () => {
+      window.monaco.editor.defineTheme("wordcounter", {
+        base: "vs",
+        inherit: true,
+        rules: [],
+        colors: {
+          "editor.background": "#00000000",
+          "editor.lineHighlightBackground": "#00000000",
+          "editorLineNumber.foreground": "#00000000",
+          "editorLineNumber.activeForeground": "#00000000",
+          "editor.selectionBackground": "#d8c5b433",
+          "editor.inactiveSelectionBackground": "#d8c5b422",
+          "editorCursor.foreground": "#2f241c"
+        }
+      });
+
+      monacoEditor = window.monaco.editor.create(editorHost, {
+        value: "",
+        language: "plaintext",
+        theme: "wordcounter",
+        minimap: {enabled: false},
+        lineNumbers: "off",
+        glyphMargin: false,
+        folding: false,
+        lineDecorationsWidth: 0,
+        lineNumbersMinChars: 0,
+        overviewRulerLanes: 0,
+        hideCursorInOverviewRuler: true,
+        renderLineHighlight: "none",
+        scrollBeyondLastLine: false,
+        occurrencesHighlight: "off",
+        selectionHighlight: false,
+        wordWrap: "on",
+        wrappingIndent: "same",
+        automaticLayout: true,
+        scrollbar: {
+          alwaysConsumeMouseWheel: false
+        },
+        fontFamily: "\"Segoe UI\", \"Apple SD Gothic Neo\", sans-serif",
+        fontSize: 18,
+        lineHeight: 36,
+        padding: {
+          top: 2,
+          bottom: 2
+        }
+      });
+
+      monacoEditor.onDidChangeModelContent(() => {
+        if (isSyncingEditor) {
+          return;
+        }
+
+        const text = getEditorText();
+        updateCounts(text);
+        touchCurrentDocument(text);
+        queueSave("자동저장 대기 중...");
+      });
+
+      render();
+    });
 
     titleInput.addEventListener("input", () => {
       touchCurrentDocument();
       queueSave("자동저장 대기 중...");
     });
 
-    editor.addEventListener("input", () => {
-      updateCounts(editor.value);
-      syncHighlightScroll();
-      touchCurrentDocument();
-      queueSave("자동저장 대기 중...");
-    });
-
-    editor.addEventListener("scroll", () => {
-      syncHighlightScroll();
-    });
-
     window.addEventListener("resize", () => {
       applySidebarState();
-      syncHighlightScroll();
-    });
-
-    window.addEventListener("resize", () => {
-      syncHighlightScroll();
+      if (monacoEditor) {
+        monacoEditor.layout();
+      }
     });
 
     maxLengthInput.addEventListener("input", () => {
@@ -744,7 +763,8 @@
       const value = sanitizeLimit(maxLengthInput.value);
       maxLengthInput.value = value ? String(value) : "";
       current.maxLength = value;
-      updateCounts(editor.value);
+      applyHighlightMode();
+      updateCounts(getEditorText());
       touchCurrentDocument();
       queueSave(value ? "최대 글자 수가 저장되었습니다." : "글자 수 제한이 해제되었습니다.");
     });
@@ -755,11 +775,12 @@
         return;
       }
 
-      const currentLength = editor.value.length;
+      const currentLength = getEditorText().length;
       if (!currentLength) {
         current.maxLength = null;
         maxLengthInput.value = "";
-        updateCounts(editor.value);
+        applyHighlightMode();
+        updateCounts(getEditorText());
         saveStatus.textContent = "현재 글이 비어 있어 최대 글자 수를 설정하지 않았습니다.";
         touchCurrentDocument();
         queueSave("글자 수 제한이 해제되었습니다.");
@@ -768,7 +789,8 @@
 
       current.maxLength = currentLength;
       maxLengthInput.value = String(currentLength);
-      updateCounts(editor.value);
+      applyHighlightMode();
+      updateCounts(getEditorText());
       touchCurrentDocument();
       queueSave("현재 글자 수를 최대값으로 저장했습니다.");
     });
@@ -776,7 +798,12 @@
     highlightOverflowToggle.addEventListener("click", () => {
       highlightOverflowEnabled = !highlightOverflowEnabled;
       applyHighlightMode();
-      updateCounts(editor.value);
+      updateCounts(getEditorText());
+    });
+
+    occurrenceHighlightToggle.addEventListener("click", () => {
+      occurrenceHighlightEnabled = !occurrenceHighlightEnabled;
+      applyOccurrenceHighlightMode();
     });
 
     toggleSidebarButton.addEventListener("click", () => {
@@ -872,14 +899,28 @@
       return documents.find((doc) => doc.id === currentId) || null;
     }
 
-    function touchCurrentDocument() {
+    function getEditorText() {
+      return monacoEditor ? monacoEditor.getValue() : "";
+    }
+
+    function setEditorText(text) {
+      if (!monacoEditor) {
+        return;
+      }
+
+      isSyncingEditor = true;
+      monacoEditor.setValue(text);
+      isSyncingEditor = false;
+    }
+
+    function touchCurrentDocument(content = getEditorText()) {
       const current = getCurrentDocument();
       if (!current) {
         return;
       }
 
       current.title = titleInput.value.trim() || "제목 없는 자기소개서";
-      current.content = editor.value;
+      current.content = content;
       current.updatedAt = new Date().toISOString();
       documents.sort((a, b) => new Date(b.updatedAt) - new Date(a.updatedAt));
       currentId = current.id;
@@ -897,21 +938,25 @@
     }
 
     function render() {
+      if (!monacoEditor) {
+        return;
+      }
+
       renderEditor();
       renderList();
     }
 
     function renderEditor() {
       const current = getCurrentDocument();
-      if (!current) {
+      if (!current || !monacoEditor) {
         return;
       }
 
       titleInput.value = current.title;
-      editor.value = current.content;
+      setEditorText(current.content);
       maxLengthInput.value = current.maxLength ? String(current.maxLength) : "";
       applyHighlightMode();
-      updateCounts(editor.value);
+      updateCounts(getEditorText());
       saveStatus.textContent = "로컬에 자동저장됩니다.";
     }
 
@@ -951,7 +996,7 @@
       countWithSpacesTotal.textContent = limit ? "/" + formatNumber(limit) : "";
       countWithoutSpaces.textContent = formatNumber(withoutSpaces);
       wordCount.textContent = formatNumber(words);
-      renderHighlight(text, limit);
+      updateOverflowDecorations();
 
       if (!limit) {
         limitHelp.textContent = "공백 포함 기준입니다. 비워두면 제한하지 않습니다.";
@@ -1001,10 +1046,48 @@
       const active = highlightOverflowEnabled;
       highlightOverflowToggle.classList.toggle("active", active);
       highlightOverflowToggle.setAttribute("aria-pressed", active ? "true" : "false");
-      editor.classList.toggle("highlight-mode", active);
-      editorHighlight.classList.toggle("is-hidden", !active);
-      updateHighlightMetrics();
-      syncHighlightScroll();
+      updateOverflowDecorations();
+    }
+
+    function applyOccurrenceHighlightMode() {
+      const active = occurrenceHighlightEnabled;
+      occurrenceHighlightToggle.classList.toggle("active", active);
+      occurrenceHighlightToggle.setAttribute("aria-pressed", active ? "true" : "false");
+      if (!monacoEditor) {
+        return;
+      }
+
+      monacoEditor.updateOptions({
+        occurrencesHighlight: active ? "singleFile" : "off",
+        selectionHighlight: active
+      });
+    }
+
+    function updateOverflowDecorations() {
+      if (!monacoEditor || !window.monaco) {
+        return;
+      }
+
+      const current = getCurrentDocument();
+      const limit = current ? sanitizeLimit(current.maxLength) : null;
+      const model = monacoEditor.getModel();
+      if (!model) {
+        return;
+      }
+
+      const nextDecorations = [];
+      if (highlightOverflowEnabled && limit && model.getValueLength() > limit) {
+        const start = model.getPositionAt(limit);
+        const end = model.getPositionAt(model.getValueLength());
+        nextDecorations.push({
+          range: new window.monaco.Range(start.lineNumber, start.column, end.lineNumber, end.column),
+          options: {
+            inlineClassName: "cm-overflowText"
+          }
+        });
+      }
+
+      overflowDecorations = monacoEditor.deltaDecorations(overflowDecorations, nextDecorations);
     }
 
     function applySidebarState() {
@@ -1014,44 +1097,6 @@
       sidebarBackdrop.classList.toggle("is-open", active);
       toggleSidebarButton.classList.toggle("active", active);
       toggleSidebarButton.setAttribute("aria-pressed", active ? "true" : "false");
-    }
-
-    function renderHighlight(text, limit) {
-      if (!highlightOverflowEnabled) {
-        editorHighlight.innerHTML = "";
-        return;
-      }
-
-      updateHighlightMetrics();
-
-      if (!limit || text.length <= limit) {
-        editorHighlight.innerHTML = escapeForHighlight(text);
-        syncHighlightScroll();
-        return;
-      }
-
-      const safeNormal = escapeForHighlight(text.slice(0, limit));
-      const safeOverflow = escapeForHighlight(text.slice(limit));
-      editorHighlight.innerHTML = safeNormal + "<span class=\"overflow\">" + safeOverflow + "</span>";
-      syncHighlightScroll();
-    }
-
-    function syncHighlightScroll() {
-      updateHighlightMetrics();
-      editorHighlight.scrollTop = editor.scrollTop;
-      editorHighlight.scrollLeft = editor.scrollLeft;
-    }
-
-    function updateHighlightMetrics() {
-      const scrollbarWidth = Math.max(0, editor.offsetWidth - editor.clientWidth);
-      editorHighlight.style.setProperty("--highlight-scrollbar-width", scrollbarWidth + "px");
-    }
-
-    function escapeForHighlight(value) {
-      const safe = escapeHtml(value)
-        .replace(/ /g, "&nbsp;")
-        .replace(/\n$/g, "\n ");
-      return safe.replace(/\n/g, "<br>");
     }
 
     function escapeHtml(value) {
@@ -1064,6 +1109,7 @@
     }
 
     applySidebarState();
+    applyOccurrenceHighlightMode();
   </script>
 </body>
 </html>
