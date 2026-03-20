@@ -245,6 +245,11 @@
       border-color: var(--line-strong);
     }
 
+    .ghost-button.active {
+      background: rgba(176, 96, 58, 0.14);
+      border-color: rgba(176, 96, 58, 0.36);
+    }
+
     .stats {
       display: grid;
       grid-template-columns: repeat(4, minmax(0, 1fr));
@@ -303,9 +308,9 @@
       background: rgba(255, 255, 255, 0.72);
       color: var(--ink);
       border-radius: 999px;
-      padding: 7px 10px;
+      padding: 4px 8px;
       font: inherit;
-      font-size: 11px;
+      font-size: 10px;
       font-weight: 700;
       cursor: pointer;
       white-space: nowrap;
@@ -314,6 +319,11 @@
     .mini-button:hover {
       border-color: var(--line-strong);
       background: rgba(255, 255, 255, 0.9);
+    }
+
+    .mini-button.active {
+      background: rgba(176, 96, 58, 0.14);
+      border-color: rgba(176, 96, 58, 0.36);
     }
 
     .stat-help.warning {
@@ -325,6 +335,17 @@
       gap: 6px;
       align-items: center;
       margin-top: 6px;
+    }
+
+    .stat-head {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 8px;
+    }
+
+    .stat-head .stat-label {
+      margin: 0;
     }
 
     .editor-shell {
@@ -344,11 +365,45 @@
       display: flex;
       flex-direction: column;
       min-width: 0;
+      position: relative;
+      overflow: hidden;
+    }
+
+    .editor-stack {
+      position: relative;
+      flex: 1;
+      min-height: 0;
+    }
+
+    .editor-highlight {
+      position: absolute;
+      inset: 0;
+      overflow: hidden;
+      pointer-events: none;
+      white-space: pre-wrap;
+      word-break: break-word;
+      color: var(--ink);
+      font: 18px/2 var(--font-body);
+      padding: 2px calc(6px + var(--highlight-scrollbar-width, 0px)) 2px 2px;
+      tab-size: 2;
+    }
+
+    .editor-highlight.is-hidden {
+      display: none;
+    }
+
+    .editor-highlight .overflow {
+      background: rgba(202, 62, 38, 0.18);
+      color: #892c1b;
+      border-radius: 4px;
     }
 
     .editor {
+      position: relative;
+      z-index: 1;
       flex: 1;
       width: 100%;
+      height: 100%;
       resize: none;
       border: 0;
       outline: none;
@@ -356,11 +411,18 @@
       color: var(--ink);
       font: 18px/2 var(--font-body);
       padding: 2px 6px 2px 2px;
+      overflow: auto;
+      scrollbar-gutter: stable;
       tab-size: 2;
     }
 
     .editor::placeholder {
       color: #aa9684;
+    }
+
+    .editor.highlight-mode {
+      color: transparent;
+      caret-color: var(--ink);
     }
 
     .empty-state {
@@ -422,6 +484,10 @@
         min-height: 52vh;
         font-size: 17px;
       }
+
+      .editor-highlight {
+        font-size: 17px;
+      }
     }
   </style>
 </head>
@@ -466,7 +532,10 @@
           <p class="stat-value" id="wordCount">0</p>
         </article>
         <article class="stat">
-          <p class="stat-label">최대 글자 수</p>
+          <div class="stat-head">
+            <p class="stat-label">최대 글자 수</p>
+            <button class="mini-button" id="highlightOverflowToggle" type="button" aria-pressed="false">초과 강조</button>
+          </div>
           <div class="stat-row">
             <input class="stat-input" id="maxLengthInput" type="number" min="1" step="1" placeholder="제한 없음">
             <button class="mini-button" id="useCurrentCountButton" type="button">현재 글자수</button>
@@ -476,11 +545,14 @@
       </section>
 
       <section class="editor-shell">
-        <textarea
-          class="editor"
-          id="editor"
-          placeholder="지원 동기, 경험, 강점, 배운 점을 차분하게 정리해 보세요."
-        ></textarea>
+        <div class="editor-stack">
+          <div class="editor-highlight is-hidden" id="editorHighlight" aria-hidden="true"></div>
+          <textarea
+            class="editor"
+            id="editor"
+            placeholder="지원 동기, 경험, 강점, 배운 점을 차분하게 정리해 보세요."
+          ></textarea>
+        </div>
         <div class="empty-state">입력할 때마다 자동으로 저장됩니다. 브라우저를 닫아도 이 기기에서는 다시 불러올 수 있습니다.</div>
       </section>
     </main>
@@ -495,16 +567,19 @@
     const newDocButton = document.getElementById("newDocButton");
     const duplicateButton = document.getElementById("duplicateButton");
     const deleteButton = document.getElementById("deleteButton");
+    const highlightOverflowToggle = document.getElementById("highlightOverflowToggle");
     const countWithSpaces = document.getElementById("countWithSpaces");
     const countWithoutSpaces = document.getElementById("countWithoutSpaces");
     const wordCount = document.getElementById("wordCount");
     const maxLengthInput = document.getElementById("maxLengthInput");
     const useCurrentCountButton = document.getElementById("useCurrentCountButton");
     const limitHelp = document.getElementById("limitHelp");
+    const editorHighlight = document.getElementById("editorHighlight");
 
     let documents = loadDocuments();
     let currentId = documents[0]?.id || null;
     let saveTimer = null;
+    let highlightOverflowEnabled = false;
 
     if (!documents.length) {
       const firstDoc = createDocument();
@@ -522,8 +597,17 @@
 
     editor.addEventListener("input", () => {
       updateCounts(editor.value);
+      syncHighlightScroll();
       touchCurrentDocument();
       queueSave("자동저장 대기 중...");
+    });
+
+    editor.addEventListener("scroll", () => {
+      syncHighlightScroll();
+    });
+
+    window.addEventListener("resize", () => {
+      syncHighlightScroll();
     });
 
     maxLengthInput.addEventListener("input", () => {
@@ -562,6 +646,12 @@
       updateCounts(editor.value);
       touchCurrentDocument();
       queueSave("현재 글자 수를 최대값으로 저장했습니다.");
+    });
+
+    highlightOverflowToggle.addEventListener("click", () => {
+      highlightOverflowEnabled = !highlightOverflowEnabled;
+      applyHighlightMode();
+      updateCounts(editor.value);
     });
 
     newDocButton.addEventListener("click", () => {
@@ -685,6 +775,7 @@
       titleInput.value = current.title;
       editor.value = current.content;
       maxLengthInput.value = current.maxLength ? String(current.maxLength) : "";
+      applyHighlightMode();
       updateCounts(editor.value);
       saveStatus.textContent = "로컬에 자동저장됩니다.";
     }
@@ -722,6 +813,7 @@
       countWithSpaces.textContent = formatNumber(withSpaces);
       countWithoutSpaces.textContent = formatNumber(withoutSpaces);
       wordCount.textContent = formatNumber(words);
+      renderHighlight(text, limit);
 
       if (!limit) {
         limitHelp.textContent = "공백 포함 기준입니다. 비워두면 제한하지 않습니다.";
@@ -765,6 +857,54 @@
 
     function formatNumber(value) {
       return new Intl.NumberFormat("ko-KR").format(value);
+    }
+
+    function applyHighlightMode() {
+      const active = highlightOverflowEnabled;
+      highlightOverflowToggle.classList.toggle("active", active);
+      highlightOverflowToggle.setAttribute("aria-pressed", active ? "true" : "false");
+      editor.classList.toggle("highlight-mode", active);
+      editorHighlight.classList.toggle("is-hidden", !active);
+      updateHighlightMetrics();
+      syncHighlightScroll();
+    }
+
+    function renderHighlight(text, limit) {
+      if (!highlightOverflowEnabled) {
+        editorHighlight.innerHTML = "";
+        return;
+      }
+
+      updateHighlightMetrics();
+
+      if (!limit || text.length <= limit) {
+        editorHighlight.innerHTML = escapeForHighlight(text);
+        syncHighlightScroll();
+        return;
+      }
+
+      const safeNormal = escapeForHighlight(text.slice(0, limit));
+      const safeOverflow = escapeForHighlight(text.slice(limit));
+      editorHighlight.innerHTML = safeNormal + "<span class=\"overflow\">" + safeOverflow + "</span>";
+      syncHighlightScroll();
+    }
+
+    function syncHighlightScroll() {
+      updateHighlightMetrics();
+      editorHighlight.scrollTop = editor.scrollTop;
+      editorHighlight.scrollLeft = editor.scrollLeft;
+    }
+
+    function updateHighlightMetrics() {
+      const scrollbarWidth = Math.max(0, editor.offsetWidth - editor.clientWidth);
+      editorHighlight.style.setProperty("--highlight-scrollbar-width", scrollbarWidth + "px");
+    }
+
+    function escapeForHighlight(value) {
+      const safe = escapeHtml(value)
+        .replace(/ /g, "&nbsp;")
+        .replace(/\n$/g, "\n ");
+      return safe.replace(/\n/g, "<br>");
     }
 
     function escapeHtml(value) {
