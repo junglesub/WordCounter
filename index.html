@@ -1,1142 +1,1164 @@
-<!DOCTYPE html>
+<!doctype html>
 <html lang="ko">
-<head>
-  <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Word Counter</title>
-  <link
-    rel="icon"
-    type="image/svg+xml"
-    href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'%3E%3Cdefs%3E%3ClinearGradient id='g' x1='0' y1='0' x2='1' y2='1'%3E%3Cstop offset='0%25' stop-color='%23c67d56'/%3E%3Cstop offset='100%25' stop-color='%239c4f33'/%3E%3C/linearGradient%3E%3C/defs%3E%3Crect width='64' height='64' rx='18' fill='%23fff8ef'/%3E%3Crect x='6' y='6' width='52' height='52' rx='15' fill='url(%23g)'/%3E%3Cpath d='M14 19h7l4 21 5-14h4l5 14 4-21h7l-7 26h-7l-4-12-4 12h-7z' fill='%23fff8ef'/%3E%3C/svg%3E"
-  >
-  <style>
-    :root {
-      --bg: #f4efe7;
-      --panel: rgba(255, 251, 245, 0.88);
-      --panel-strong: #fffdf9;
-      --line: rgba(98, 74, 52, 0.16);
-      --line-strong: rgba(98, 74, 52, 0.3);
-      --ink: #2f241c;
-      --muted: #7a6756;
-      --accent: #b0603a;
-      --accent-soft: rgba(176, 96, 58, 0.12);
-      --shadow: 0 24px 60px rgba(64, 43, 27, 0.12);
-      --radius-xl: 28px;
-      --radius-lg: 20px;
-      --radius-md: 14px;
-      --font-display: "Iowan Old Style", "Book Antiqua", "Times New Roman", serif;
-      --font-body: "Segoe UI", "Apple SD Gothic Neo", sans-serif;
-    }
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Word Counter</title>
+    <link
+      rel="icon"
+      type="image/svg+xml"
+      href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'%3E%3Cdefs%3E%3ClinearGradient id='g' x1='0' y1='0' x2='1' y2='1'%3E%3Cstop offset='0%25' stop-color='%23c67d56'/%3E%3Cstop offset='100%25' stop-color='%239c4f33'/%3E%3C/linearGradient%3E%3C/defs%3E%3Crect width='64' height='64' rx='18' fill='%23fff8ef'/%3E%3Crect x='6' y='6' width='52' height='52' rx='15' fill='url(%23g)'/%3E%3Cpath d='M14 19h7l4 21 5-14h4l5 14 4-21h7l-7 26h-7l-4-12-4 12h-7z' fill='%23fff8ef'/%3E%3C/svg%3E"
+    />
+    <style>
+      :root {
+        --bg: #f4efe7;
+        --panel: rgba(255, 251, 245, 0.88);
+        --panel-strong: #fffdf9;
+        --line: rgba(98, 74, 52, 0.16);
+        --line-strong: rgba(98, 74, 52, 0.3);
+        --ink: #2f241c;
+        --muted: #7a6756;
+        --accent: #b0603a;
+        --accent-soft: rgba(176, 96, 58, 0.12);
+        --shadow: 0 24px 60px rgba(64, 43, 27, 0.12);
+        --radius-xl: 28px;
+        --radius-lg: 20px;
+        --radius-md: 14px;
+        --font-display:
+          "Iowan Old Style", "Book Antiqua", "Times New Roman", serif;
+        --font-body: "Segoe UI", "Apple SD Gothic Neo", sans-serif;
+      }
 
-    * {
-      box-sizing: border-box;
-    }
+      * {
+        box-sizing: border-box;
+      }
 
-    html, body {
-      margin: 0;
-      height: 100%;
-      min-height: 100%;
-    }
-
-    body {
-      font-family: var(--font-body);
-      color: var(--ink);
-      background:
-        radial-gradient(circle at top left, rgba(176, 96, 58, 0.12), transparent 28%),
-        linear-gradient(160deg, #efe6d8 0%, #f7f3ed 48%, #ece3d5 100%);
-      overflow: hidden;
-    }
-
-    .app {
-      display: grid;
-      grid-template-columns: 320px minmax(0, 1fr);
-      height: 100%;
-      min-height: 100vh;
-      gap: 22px;
-      padding: 0;
-    }
-
-    .sidebar,
-    .workspace {
-      backdrop-filter: blur(18px);
-      background: var(--panel);
-      border: 1px solid rgba(255, 255, 255, 0.65);
-      box-shadow: var(--shadow);
-    }
-
-    .sidebar {
-      border-radius: 0;
-      padding: 24px 18px 18px;
-      display: flex;
-      flex-direction: column;
-      gap: 18px;
-      position: relative;
-      z-index: 3;
-    }
-
-    .sidebar-backdrop {
-      display: none;
-    }
-
-    .brand {
-      padding: 8px 10px 0;
-    }
-
-    .eyebrow {
-      margin: 0 0 8px;
-      color: var(--accent);
-      font-size: 12px;
-      letter-spacing: 0.18em;
-      text-transform: uppercase;
-      font-weight: 700;
-    }
-
-    h1 {
-      margin: 0;
-      font-family: var(--font-display);
-      font-size: 38px;
-      line-height: 1.05;
-      font-weight: 600;
-      letter-spacing: -0.03em;
-    }
-
-    .subtitle {
-      margin: 12px 0 0;
-      color: var(--muted);
-      font-size: 14px;
-      line-height: 1.6;
-    }
-
-    .new-button {
-      border: 0;
-      border-radius: 999px;
-      padding: 14px 18px;
-      background: linear-gradient(135deg, #a55334, #c37a53);
-      color: white;
-      font: inherit;
-      font-weight: 700;
-      cursor: pointer;
-      transition: transform 160ms ease, box-shadow 160ms ease;
-      box-shadow: 0 16px 26px rgba(176, 96, 58, 0.24);
-    }
-
-    .new-button:hover {
-      transform: translateY(-1px);
-    }
-
-    .section-label {
-      padding: 0 10px;
-      color: var(--muted);
-      font-size: 12px;
-      font-weight: 700;
-      letter-spacing: 0.14em;
-      text-transform: uppercase;
-    }
-
-    .doc-list {
-      overflow: auto;
-      padding-right: 4px;
-      display: flex;
-      flex-direction: column;
-      gap: 10px;
-    }
-
-    .doc-card {
-      width: 100%;
-      text-align: left;
-      border: 1px solid transparent;
-      background: var(--panel-strong);
-      border-radius: 18px;
-      padding: 14px 14px 13px;
-      cursor: pointer;
-      transition: border-color 160ms ease, transform 160ms ease, background 160ms ease;
-    }
-
-    .doc-card:hover {
-      transform: translateX(2px);
-      border-color: var(--line);
-    }
-
-    .doc-card.active {
-      border-color: rgba(176, 96, 58, 0.32);
-      background: linear-gradient(180deg, rgba(176, 96, 58, 0.1), rgba(255, 253, 249, 0.96));
-    }
-
-    .doc-title {
-      margin: 0 0 6px;
-      font-size: 15px;
-      font-weight: 700;
-      color: var(--ink);
-      white-space: nowrap;
-      overflow: hidden;
-      text-overflow: ellipsis;
-    }
-
-    .doc-meta,
-    .doc-preview {
-      margin: 0;
-      color: var(--muted);
-      font-size: 12px;
-      line-height: 1.5;
-    }
-
-    .doc-preview {
-      margin-top: 7px;
-      display: -webkit-box;
-      -webkit-box-orient: vertical;
-      -webkit-line-clamp: 2;
-      overflow: hidden;
-      min-height: 36px;
-    }
-
-    .workspace {
-      border-radius: 0;
-      width: min(100%, 900px);
-      justify-self: center;
-      padding: 24px;
-      display: grid;
-      grid-template-rows: auto auto minmax(0, 1fr);
-      gap: 18px;
-      overflow: hidden;
-    }
-
-    .topbar {
-      display: flex;
-      align-items: center;
-      justify-content: space-between;
-      gap: 16px;
-      padding: 4px 2px 0;
-    }
-
-    .title-wrap {
-      display: flex;
-      flex-direction: column;
-      gap: 8px;
-      min-width: 0;
-      flex: 1;
-    }
-
-    .title-input {
-      width: 100%;
-      border: 0;
-      outline: none;
-      background: transparent;
-      color: var(--ink);
-      font-family: var(--font-display);
-      font-size: clamp(24px, 2.9vw, 38px);
-      line-height: 1.12;
-      letter-spacing: -0.035em;
-      padding: 0;
-    }
-
-    .status {
-      color: var(--muted);
-      font-size: 13px;
-    }
-
-    .toolbar {
-      display: flex;
-      gap: 10px;
-      align-items: center;
-      flex-wrap: wrap;
-    }
-
-    .ghost-button {
-      border: 1px solid var(--line);
-      background: rgba(255, 255, 255, 0.45);
-      color: var(--ink);
-      border-radius: 999px;
-      padding: 11px 14px;
-      font: inherit;
-      font-size: 14px;
-      cursor: pointer;
-      transition: background 160ms ease, border-color 160ms ease;
-    }
-
-    .ghost-button:hover {
-      background: rgba(255, 255, 255, 0.72);
-      border-color: var(--line-strong);
-    }
-
-    .ghost-button.active {
-      background: rgba(176, 96, 58, 0.14);
-      border-color: rgba(176, 96, 58, 0.36);
-    }
-
-    .mobile-only {
-      display: none;
-    }
-
-    .stats {
-      display: grid;
-      grid-template-columns: repeat(3, minmax(0, 1fr)) minmax(220px, 1.15fr);
-      gap: 10px;
-    }
-
-    .stat {
-      background: var(--panel-strong);
-      border: 1px solid rgba(255, 255, 255, 0.7);
-      border-radius: var(--radius-lg);
-      padding: 12px 14px;
-    }
-
-    .stat-label {
-      margin: 0 0 6px;
-      color: var(--muted);
-      font-size: 11px;
-      letter-spacing: 0.12em;
-      text-transform: uppercase;
-      font-weight: 700;
-    }
-
-    .stat-value {
-      margin: 0;
-      font-family: var(--font-display);
-      font-size: clamp(24px, 2.5vw, 34px);
-      letter-spacing: -0.05em;
-    }
-
-    .stat-value-inline {
-      display: flex;
-      align-items: baseline;
-      gap: 8px;
-      flex-wrap: wrap;
-    }
-
-    .stat-total {
-      color: var(--muted);
-      font-family: var(--font-body);
-      font-size: 14px;
-      letter-spacing: 0;
-    }
-
-    .stat-value.is-over-limit,
-    .stat-total.is-over-limit {
-      color: #9d3f1f;
-    }
-
-    .stat-input {
-      width: 100%;
-      border: 1px solid var(--line);
-      border-radius: 12px;
-      background: rgba(255, 255, 255, 0.78);
-      color: var(--ink);
-      font: inherit;
-      font-size: 13px;
-      padding: 7px 10px;
-      outline: none;
-    }
-
-    .stat-input:focus {
-      border-color: rgba(176, 96, 58, 0.42);
-      box-shadow: 0 0 0 4px var(--accent-soft);
-    }
-
-    .stat-help {
-      margin: 0;
-      color: var(--muted);
-      font-size: 11px;
-      line-height: 1.5;
-    }
-
-    .mini-button {
-      border: 1px solid var(--line);
-      background: rgba(255, 255, 255, 0.72);
-      color: var(--ink);
-      border-radius: 999px;
-      padding: 4px 8px;
-      font: inherit;
-      font-size: 10px;
-      font-weight: 700;
-      cursor: pointer;
-      white-space: nowrap;
-    }
-
-    .mini-button:hover {
-      border-color: var(--line-strong);
-      background: rgba(255, 255, 255, 0.9);
-    }
-
-    .mini-button.active {
-      background: rgba(176, 96, 58, 0.14);
-      border-color: rgba(176, 96, 58, 0.36);
-    }
-
-    .stat-help.warning {
-      color: #9d3f1f;
-    }
-
-    .stat-row {
-      display: flex;
-      gap: 6px;
-      align-items: center;
-      margin-top: 6px;
-    }
-
-    .stat-row .stat-input {
-      flex: 0 0 14ch;
-      width: 14ch;
-      min-width: 14ch;
-    }
-
-    .stat-row .mini-button {
-      flex: 0 0 auto;
-    }
-
-    .stat-head {
-      display: flex;
-      align-items: center;
-      justify-content: space-between;
-      gap: 8px;
-    }
-
-    .stat-head .stat-label {
-      margin: 0;
-    }
-
-    .editor-shell {
-      min-height: 0;
-      padding: 22px;
-      border-radius: 30px;
-      background:
-        linear-gradient(180deg, rgba(255, 255, 255, 0.96), rgba(255, 252, 247, 0.98)),
-        repeating-linear-gradient(
-          to bottom,
-          transparent 0,
-          transparent 39px,
-          rgba(171, 146, 122, 0.12) 39px,
-          rgba(171, 146, 122, 0.12) 40px
-        );
-      border: 1px solid rgba(255, 255, 255, 0.75);
-      display: flex;
-      flex-direction: column;
-      min-width: 0;
-      position: relative;
-      overflow: hidden;
-    }
-
-    .editor-host {
-      flex: 1;
-      height: 100%;
-      min-height: 0;
-    }
-
-    .editor-host .monaco-editor,
-    .editor-host .overflow-guard {
-      height: 100%;
-      background: transparent;
-      color: var(--ink);
-    }
-
-    .editor-host .monaco-editor,
-    .editor-host .monaco-editor-background,
-    .editor-host .margin {
-      outline: none;
-      background: transparent !important;
-    }
-
-    .editor-host .view-lines {
-      font-family: var(--font-body);
-    }
-
-    .editor-host .cm-overflowText {
-      background: rgba(202, 62, 38, 0.18);
-      color: #892c1b;
-      border-radius: 4px;
-    }
-
-    .empty-state {
-      margin-top: auto;
-      color: var(--muted);
-      font-size: 13px;
-    }
-
-    @media (max-width: 1249px) {
+      html,
       body {
-        overflow: auto;
+        margin: 0;
+        height: 100%;
+        min-height: 100%;
+      }
+
+      body {
+        font-family: var(--font-body);
+        color: var(--ink);
+        background:
+          radial-gradient(
+            circle at top left,
+            rgba(176, 96, 58, 0.12),
+            transparent 28%
+          ),
+          linear-gradient(160deg, #efe6d8 0%, #f7f3ed 48%, #ece3d5 100%);
+        overflow: hidden;
       }
 
       .app {
-        grid-template-columns: 1fr;
-        min-height: auto;
-      }
-
-      .mobile-only {
-        display: inline-flex;
-      }
-
-      .sidebar {
-        position: fixed;
-        top: 16px;
-        left: 16px;
-        bottom: 16px;
-        width: min(360px, calc(100vw - 32px));
-        max-width: calc(100vw - 32px);
-        display: flex;
-        transform: translateX(calc(-100% - 24px));
-        transition: transform 180ms ease;
-      }
-
-      .sidebar.is-open {
-        transform: translateX(0);
-      }
-
-      .sidebar-backdrop {
-        position: fixed;
-        inset: 0;
-        background: rgba(47, 36, 28, 0.24);
-        backdrop-filter: blur(6px);
-        display: block;
-        opacity: 0;
-        pointer-events: none;
-        transition: opacity 180ms ease;
-        z-index: 2;
-      }
-
-      .sidebar-backdrop.is-open {
-        opacity: 1;
-        pointer-events: auto;
-      }
-
-      .workspace {
-        min-height: auto;
-      }
-    }
-
-    @media (max-width: 720px) {
-      .app {
+        display: grid;
+        grid-template-columns: 320px minmax(0, 1fr);
+        height: 100%;
+        min-height: 100vh;
+        gap: 22px;
         padding: 0;
-        gap: 14px;
       }
 
       .sidebar,
       .workspace {
+        backdrop-filter: blur(18px);
+        background: var(--panel);
+        border: 1px solid rgba(255, 255, 255, 0.65);
+        box-shadow: var(--shadow);
+      }
+
+      .sidebar {
         border-radius: 0;
-      }
-
-      .workspace {
-        padding: 18px;
-      }
-
-      .stats {
+        padding: 24px 18px 18px;
         display: flex;
-        flex-wrap: nowrap;
-        gap: 8px;
-        overflow-x: auto;
-        padding-bottom: 2px;
+        flex-direction: column;
+        gap: 18px;
+        position: relative;
+        z-index: 3;
       }
 
-      .stats::-webkit-scrollbar {
-        height: 6px;
-      }
-
-      .stat {
-        flex: 0 0 auto;
-        min-width: max-content;
-        border-radius: 999px;
-        padding: 8px 10px;
-        display: flex;
-        align-items: center;
-        gap: 8px;
-      }
-
-      .stat-label {
-        margin: 0;
-      }
-
-      .stat-value {
-        font-size: 18px;
-        line-height: 1;
-      }
-
-      .stat-head {
-        gap: 6px;
-      }
-
-      .stat-row {
-        margin-top: 0;
-      }
-
-      .stat-help {
+      .sidebar-backdrop {
         display: none;
       }
 
+      .brand {
+        padding: 8px 10px 0;
+      }
+
+      .eyebrow {
+        margin: 0 0 8px;
+        color: var(--accent);
+        font-size: 12px;
+        letter-spacing: 0.18em;
+        text-transform: uppercase;
+        font-weight: 700;
+      }
+
+      h1 {
+        margin: 0;
+        font-family: var(--font-display);
+        font-size: 38px;
+        line-height: 1.05;
+        font-weight: 600;
+        letter-spacing: -0.03em;
+      }
+
+      .subtitle {
+        margin: 12px 0 0;
+        color: var(--muted);
+        font-size: 14px;
+        line-height: 1.6;
+      }
+
+      .new-button {
+        border: 0;
+        border-radius: 999px;
+        padding: 14px 18px;
+        background: linear-gradient(135deg, #a55334, #c37a53);
+        color: white;
+        font: inherit;
+        font-weight: 700;
+        cursor: pointer;
+        transition:
+          transform 160ms ease,
+          box-shadow 160ms ease;
+        box-shadow: 0 16px 26px rgba(176, 96, 58, 0.24);
+      }
+
+      .new-button:hover {
+        transform: translateY(-1px);
+      }
+
+      .section-label {
+        padding: 0 10px;
+        color: var(--muted);
+        font-size: 12px;
+        font-weight: 700;
+        letter-spacing: 0.14em;
+        text-transform: uppercase;
+      }
+
+      .doc-list {
+        overflow: auto;
+        padding-right: 4px;
+        display: flex;
+        flex-direction: column;
+        gap: 10px;
+      }
+
+      .doc-card {
+        width: 100%;
+        text-align: left;
+        border: 1px solid transparent;
+        background: var(--panel-strong);
+        border-radius: 18px;
+        padding: 14px 14px 13px;
+        cursor: pointer;
+        transition:
+          border-color 160ms ease,
+          transform 160ms ease,
+          background 160ms ease;
+      }
+
+      .doc-card:hover {
+        transform: translateX(2px);
+        border-color: var(--line);
+      }
+
+      .doc-card.active {
+        border-color: rgba(176, 96, 58, 0.32);
+        background: linear-gradient(
+          180deg,
+          rgba(176, 96, 58, 0.1),
+          rgba(255, 253, 249, 0.96)
+        );
+      }
+
+      .doc-title {
+        margin: 0 0 6px;
+        font-size: 15px;
+        font-weight: 700;
+        color: var(--ink);
+        white-space: nowrap;
+        overflow: hidden;
+        text-overflow: ellipsis;
+      }
+
+      .doc-meta,
+      .doc-preview {
+        margin: 0;
+        color: var(--muted);
+        font-size: 12px;
+        line-height: 1.5;
+      }
+
+      .doc-preview {
+        margin-top: 7px;
+        display: -webkit-box;
+        -webkit-box-orient: vertical;
+        -webkit-line-clamp: 2;
+        overflow: hidden;
+        min-height: 36px;
+      }
+
+      .workspace {
+        border-radius: 0;
+        width: min(100%, 900px);
+        justify-self: center;
+        padding: 24px;
+        display: grid;
+        grid-template-rows: auto auto minmax(0, 1fr);
+        gap: 18px;
+        overflow: hidden;
+      }
+
+      .topbar {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 16px;
+        padding: 4px 2px 0;
+      }
+
+      .title-wrap {
+        display: flex;
+        flex-direction: column;
+        gap: 8px;
+        min-width: 0;
+        flex: 1;
+      }
+
+      .title-input {
+        width: 100%;
+        border: 0;
+        outline: none;
+        background: transparent;
+        color: var(--ink);
+        font-family: var(--font-display);
+        font-size: clamp(24px, 2.9vw, 38px);
+        line-height: 1.12;
+        letter-spacing: -0.035em;
+        padding: 0;
+      }
+
+      .status {
+        color: var(--muted);
+        font-size: 13px;
+      }
+
+      .toolbar {
+        display: flex;
+        gap: 10px;
+        align-items: center;
+        flex-wrap: wrap;
+      }
+
+      .ghost-button {
+        border: 1px solid var(--line);
+        background: rgba(255, 255, 255, 0.45);
+        color: var(--ink);
+        border-radius: 999px;
+        padding: 11px 14px;
+        font: inherit;
+        font-size: 14px;
+        cursor: pointer;
+        transition:
+          background 160ms ease,
+          border-color 160ms ease;
+      }
+
+      .ghost-button:hover {
+        background: rgba(255, 255, 255, 0.72);
+        border-color: var(--line-strong);
+      }
+
+      .ghost-button.active {
+        background: rgba(176, 96, 58, 0.14);
+        border-color: rgba(176, 96, 58, 0.36);
+      }
+
+      .mobile-only {
+        display: none;
+      }
+
+      .stats {
+        display: grid;
+        grid-template-columns: repeat(3, minmax(0, 1fr)) minmax(220px, 1.15fr);
+        gap: 10px;
+      }
+
+      .stat {
+        background: var(--panel-strong);
+        border: 1px solid rgba(255, 255, 255, 0.7);
+        border-radius: var(--radius-lg);
+        padding: 12px 14px;
+      }
+
+      .stat-label {
+        margin: 0 0 6px;
+        color: var(--muted);
+        font-size: 11px;
+        letter-spacing: 0.12em;
+        text-transform: uppercase;
+        font-weight: 700;
+      }
+
+      .stat-value {
+        margin: 0;
+        font-family: var(--font-display);
+        font-size: clamp(24px, 2.5vw, 34px);
+        letter-spacing: -0.05em;
+      }
+
+      .stat-value-inline {
+        display: flex;
+        align-items: baseline;
+        gap: 8px;
+        flex-wrap: wrap;
+      }
+
+      .stat-total {
+        color: var(--muted);
+        font-family: var(--font-body);
+        font-size: 14px;
+        letter-spacing: 0;
+      }
+
+      .stat-value.is-over-limit,
+      .stat-total.is-over-limit {
+        color: #9d3f1f;
+      }
+
+      .stat-input {
+        width: 100%;
+        border: 1px solid var(--line);
+        border-radius: 12px;
+        background: rgba(255, 255, 255, 0.78);
+        color: var(--ink);
+        font: inherit;
+        font-size: 13px;
+        padding: 7px 10px;
+        outline: none;
+      }
+
+      .stat-input:focus {
+        border-color: rgba(176, 96, 58, 0.42);
+        box-shadow: 0 0 0 4px var(--accent-soft);
+      }
+
+      .stat-help {
+        margin: 0;
+        color: var(--muted);
+        font-size: 11px;
+        line-height: 1.5;
+      }
+
+      .mini-button {
+        border: 1px solid var(--line);
+        background: rgba(255, 255, 255, 0.72);
+        color: var(--ink);
+        border-radius: 999px;
+        padding: 4px 8px;
+        font: inherit;
+        font-size: 10px;
+        font-weight: 700;
+        cursor: pointer;
+        white-space: nowrap;
+      }
+
+      .mini-button:hover {
+        border-color: var(--line-strong);
+        background: rgba(255, 255, 255, 0.9);
+      }
+
+      .mini-button.active {
+        background: rgba(176, 96, 58, 0.14);
+        border-color: rgba(176, 96, 58, 0.36);
+      }
+
+      .stat-help.warning {
+        color: #9d3f1f;
+      }
+
+      .stat-row {
+        display: flex;
+        gap: 6px;
+        align-items: center;
+        margin-top: 6px;
+      }
+
+      .stat-row .stat-input {
+        flex: 0 0 14ch;
+        width: 14ch;
+        min-width: 14ch;
+      }
+
+      .stat-row .mini-button {
+        flex: 0 0 auto;
+      }
+
+      .stat-head {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 8px;
+      }
+
+      .stat-head .stat-label {
+        margin: 0;
+      }
+
       .editor-shell {
-        padding: 16px;
-        border-radius: 20px;
+        min-height: 0;
+        border-radius: 30px;
+        background:
+          linear-gradient(
+            180deg,
+            rgba(255, 255, 255, 0.96),
+            rgba(255, 252, 247, 0.98)
+          ),
+          repeating-linear-gradient(
+            to bottom,
+            transparent 0,
+            transparent 39px,
+            rgba(171, 146, 122, 0.12) 39px,
+            rgba(171, 146, 122, 0.12) 40px
+          );
+        border: 1px solid rgba(255, 255, 255, 0.75);
+        display: flex;
+        flex-direction: column;
+        min-width: 0;
+        position: relative;
+        overflow: hidden;
       }
 
-      .editor-host .view-lines {
-        font-size: 17px;
+      .editor-container {
+        flex: 1;
+        min-height: 0;
+        position: relative;
+        overflow: hidden;
       }
-    }
-  </style>
-</head>
-<body>
-  <div class="app">
-    <aside class="sidebar">
-      <div class="brand">
-        <p class="eyebrow">Writing Space</p>
-        <h1>Word Counter</h1>
-        <p class="subtitle">자소서에 맞춘 차분한 작업 공간입니다. 자동저장으로 초안을 쌓아 두고, 이전 글을 빠르게 다시 열 수 있습니다.</p>
-      </div>
 
-      <button class="new-button" id="newDocButton" type="button">새 글 시작하기</button>
+      .editor-backdrop {
+        position: absolute;
+        inset: 0;
+        padding: 24px;
+        font-family: "Segoe UI", "Apple SD Gothic Neo", sans-serif;
+        font-size: 18px;
+        line-height: 2;
+        color: transparent;
+        white-space: pre-wrap;
+        word-wrap: break-word;
+        overflow-y: auto;
+        pointer-events: none;
+        z-index: 0;
+      }
 
-      <div class="section-label">Saved Drafts</div>
-      <div class="doc-list" id="docList"></div>
-    </aside>
-    <button class="sidebar-backdrop" id="sidebarBackdrop" type="button" aria-label="사이드바 닫기"></button>
+      .editor-backdrop .overflow-mark {
+        background: rgba(202, 62, 38, 0.18);
+        color: #892c1b;
+        border-radius: 4px;
+      }
 
-    <main class="workspace">
-      <div class="topbar">
-        <div class="title-wrap">
-          <input class="title-input" id="titleInput" type="text" maxlength="80" placeholder="제목 없는 자기소개서">
-          <div class="status" id="saveStatus">로컬에 자동저장됩니다.</div>
+      .editor-textarea {
+        position: absolute;
+        inset: 0;
+        width: 100%;
+        height: 100%;
+        padding: 24px;
+        border: 0;
+        outline: none;
+        resize: none;
+        background: transparent;
+        color: var(--ink);
+        font-family: "Segoe UI", "Apple SD Gothic Neo", sans-serif;
+        font-size: 18px;
+        line-height: 2;
+        caret-color: var(--ink);
+        z-index: 1;
+      }
+
+      .editor-textarea::placeholder {
+        color: var(--muted);
+        opacity: 0.5;
+      }
+
+      .editor-textarea::-webkit-scrollbar {
+        width: 8px;
+      }
+
+      .editor-textarea::-webkit-scrollbar-track {
+        background: transparent;
+      }
+
+      .editor-textarea::-webkit-scrollbar-thumb {
+        background: rgba(98, 74, 52, 0.18);
+        border-radius: 99px;
+      }
+
+      .editor-textarea::-webkit-scrollbar-thumb:hover {
+        background: rgba(98, 74, 52, 0.3);
+      }
+
+      /* No longer making textarea text transparent — text stays visible at all times */
+
+      .empty-state {
+        margin-top: auto;
+        color: var(--muted);
+        font-size: 13px;
+      }
+
+      @media (max-width: 1249px) {
+        body {
+          overflow: auto;
+        }
+
+        .app {
+          grid-template-columns: 1fr;
+          min-height: auto;
+        }
+
+        .mobile-only {
+          display: inline-flex;
+        }
+
+        .sidebar {
+          position: fixed;
+          top: 16px;
+          left: 16px;
+          bottom: 16px;
+          width: min(360px, calc(100vw - 32px));
+          max-width: calc(100vw - 32px);
+          display: flex;
+          transform: translateX(calc(-100% - 24px));
+          transition: transform 180ms ease;
+        }
+
+        .sidebar.is-open {
+          transform: translateX(0);
+        }
+
+        .sidebar-backdrop {
+          position: fixed;
+          inset: 0;
+          background: rgba(47, 36, 28, 0.24);
+          backdrop-filter: blur(6px);
+          display: block;
+          opacity: 0;
+          pointer-events: none;
+          transition: opacity 180ms ease;
+          z-index: 2;
+        }
+
+        .sidebar-backdrop.is-open {
+          opacity: 1;
+          pointer-events: auto;
+        }
+
+        .workspace {
+          min-height: auto;
+        }
+      }
+
+      @media (max-width: 720px) {
+        .app {
+          padding: 0;
+          gap: 14px;
+        }
+
+        .sidebar,
+        .workspace {
+          border-radius: 0;
+        }
+
+        .workspace {
+          padding: 18px;
+        }
+
+        .stats {
+          display: flex;
+          flex-wrap: nowrap;
+          gap: 8px;
+          overflow-x: auto;
+          padding-bottom: 2px;
+        }
+
+        .stats::-webkit-scrollbar {
+          height: 6px;
+        }
+
+        .stat {
+          flex: 0 0 auto;
+          min-width: max-content;
+          border-radius: 999px;
+          padding: 8px 10px;
+          display: flex;
+          align-items: center;
+          gap: 8px;
+        }
+
+        .stat-label {
+          margin: 0;
+        }
+
+        .stat-value {
+          font-size: 18px;
+          line-height: 1;
+        }
+
+        .stat-head {
+          gap: 6px;
+        }
+
+        .stat-row {
+          margin-top: 0;
+        }
+
+        .stat-help {
+          display: none;
+        }
+
+        .editor-shell {
+          border-radius: 20px;
+        }
+
+        .editor-textarea {
+          padding: 16px;
+          font-size: 17px;
+        }
+
+        .editor-backdrop {
+          padding: 16px;
+          font-size: 17px;
+        }
+      }
+    </style>
+  </head>
+  <body>
+    <div class="app">
+      <aside class="sidebar">
+        <div class="brand">
+          <p class="eyebrow">Writing Space</p>
+          <h1>Word Counter</h1>
+          <p class="subtitle">
+            자소서에 맞춘 차분한 작업 공간입니다. 자동저장으로 초안을 쌓아 두고,
+            이전 글을 빠르게 다시 열 수 있습니다.
+          </p>
         </div>
-        <div class="toolbar">
-          <button class="ghost-button mobile-only" id="toggleSidebarButton" type="button" aria-pressed="false">Drafts</button>
-          <button class="ghost-button" id="occurrenceHighlightToggle" type="button" aria-pressed="false">단어 강조</button>
-          <button class="ghost-button" id="duplicateButton" type="button">복제</button>
-          <button class="ghost-button" id="deleteButton" type="button">삭제</button>
+
+        <button class="new-button" id="newDocButton" type="button">
+          새 글 시작하기
+        </button>
+
+        <div class="section-label">Saved Drafts</div>
+        <div class="doc-list" id="docList"></div>
+      </aside>
+      <button
+        class="sidebar-backdrop"
+        id="sidebarBackdrop"
+        type="button"
+        aria-label="사이드바 닫기"
+      ></button>
+
+      <main class="workspace">
+        <div class="topbar">
+          <div class="title-wrap">
+            <input
+              class="title-input"
+              id="titleInput"
+              type="text"
+              maxlength="80"
+              placeholder="제목 없는 자기소개서"
+            />
+            <div class="status" id="saveStatus">로컬에 자동저장됩니다.</div>
+          </div>
+          <div class="toolbar">
+            <button
+              class="ghost-button mobile-only"
+              id="toggleSidebarButton"
+              type="button"
+              aria-pressed="false"
+            >
+              Drafts
+            </button>
+            <button class="ghost-button" id="duplicateButton" type="button">
+              복제
+            </button>
+            <button class="ghost-button" id="deleteButton" type="button">
+              삭제
+            </button>
+          </div>
         </div>
-      </div>
 
-      <section class="stats">
-        <article class="stat">
-          <p class="stat-label">공백 포함</p>
-          <div class="stat-value-inline">
-            <p class="stat-value" id="countWithSpaces">0</p>
-            <span class="stat-total" id="countWithSpacesTotal"></span>
+        <section class="stats">
+          <article class="stat">
+            <p class="stat-label">공백 포함</p>
+            <div class="stat-value-inline">
+              <p class="stat-value" id="countWithSpaces">0</p>
+              <span class="stat-total" id="countWithSpacesTotal"></span>
+            </div>
+          </article>
+          <article class="stat">
+            <p class="stat-label">공백 제외</p>
+            <p class="stat-value" id="countWithoutSpaces">0</p>
+          </article>
+          <article class="stat">
+            <p class="stat-label">단어 수</p>
+            <p class="stat-value" id="wordCount">0</p>
+          </article>
+          <article class="stat">
+            <div class="stat-head">
+              <p class="stat-label">최대 글자 수</p>
+              <button
+                class="mini-button"
+                id="highlightOverflowToggle"
+                type="button"
+                aria-pressed="false"
+              >
+                초과 강조
+              </button>
+            </div>
+            <div class="stat-row">
+              <input
+                class="stat-input"
+                id="maxLengthInput"
+                type="number"
+                min="1"
+                step="1"
+                placeholder="제한 없음"
+              />
+              <button
+                class="mini-button"
+                id="useCurrentCountButton"
+                type="button"
+              >
+                현재 글자수
+              </button>
+            </div>
+            <p class="stat-help" id="limitHelp">
+              공백 포함 기준입니다. 비워두면 제한하지 않습니다.
+            </p>
+          </article>
+        </section>
+
+        <section class="editor-shell">
+          <div class="editor-container">
+            <div class="editor-backdrop" id="editorBackdrop"></div>
+            <textarea
+              class="editor-textarea"
+              id="editor"
+              placeholder="여기에 자기소개서를 작성하세요..."
+              spellcheck="false"
+            ></textarea>
           </div>
-        </article>
-        <article class="stat">
-          <p class="stat-label">공백 제외</p>
-          <p class="stat-value" id="countWithoutSpaces">0</p>
-        </article>
-        <article class="stat">
-          <p class="stat-label">단어 수</p>
-          <p class="stat-value" id="wordCount">0</p>
-        </article>
-        <article class="stat">
-          <div class="stat-head">
-            <p class="stat-label">최대 글자 수</p>
-            <button class="mini-button" id="highlightOverflowToggle" type="button" aria-pressed="false">초과 강조</button>
-          </div>
-          <div class="stat-row">
-            <input class="stat-input" id="maxLengthInput" type="number" min="1" step="1" placeholder="제한 없음">
-            <button class="mini-button" id="useCurrentCountButton" type="button">현재 글자수</button>
-          </div>
-          <p class="stat-help" id="limitHelp">공백 포함 기준입니다. 비워두면 제한하지 않습니다.</p>
-        </article>
-      </section>
+        </section>
 
-      <section class="editor-shell">
-        <div class="editor-host" id="editor"></div>
-      </section>
+        <div class="empty-state">
+          입력할 때마다 자동으로 저장됩니다. 브라우저를 닫아도 이 기기에서는
+          다시 불러올 수 있습니다.
+        </div>
+      </main>
+    </div>
 
-      <div class="empty-state">입력할 때마다 자동으로 저장됩니다. 브라우저를 닫아도 이 기기에서는 다시 불러올 수 있습니다.</div>
-    </main>
-  </div>
+    <script>
+      const STORAGE_KEY = "wordcounter-documents-v1";
+      const titleInput = document.getElementById("titleInput");
+      const editorTextarea = document.getElementById("editor");
+      const editorBackdrop = document.getElementById("editorBackdrop");
+      const docList = document.getElementById("docList");
+      const sidebar = document.querySelector(".sidebar");
+      const sidebarBackdrop = document.getElementById("sidebarBackdrop");
+      const saveStatus = document.getElementById("saveStatus");
+      const newDocButton = document.getElementById("newDocButton");
+      const toggleSidebarButton = document.getElementById(
+        "toggleSidebarButton",
+      );
+      const duplicateButton = document.getElementById("duplicateButton");
+      const deleteButton = document.getElementById("deleteButton");
+      const highlightOverflowToggle = document.getElementById(
+        "highlightOverflowToggle",
+      );
+      const countWithSpaces = document.getElementById("countWithSpaces");
+      const countWithSpacesTotal = document.getElementById(
+        "countWithSpacesTotal",
+      );
+      const countWithoutSpaces = document.getElementById("countWithoutSpaces");
+      const wordCount = document.getElementById("wordCount");
+      const maxLengthInput = document.getElementById("maxLengthInput");
+      const useCurrentCountButton = document.getElementById(
+        "useCurrentCountButton",
+      );
+      const limitHelp = document.getElementById("limitHelp");
 
-  <script src="https://cdnjs.cloudflare.com/ajax/libs/monaco-editor/0.52.2/min/vs/loader.min.js"></script>
-  <script>
-    const STORAGE_KEY = "wordcounter-documents-v1";
-    const MONACO_BASE = "https://cdnjs.cloudflare.com/ajax/libs/monaco-editor/0.52.2/min/vs";
-    const titleInput = document.getElementById("titleInput");
-    const editorHost = document.getElementById("editor");
-    const docList = document.getElementById("docList");
-    const sidebar = document.querySelector(".sidebar");
-    const sidebarBackdrop = document.getElementById("sidebarBackdrop");
-    const saveStatus = document.getElementById("saveStatus");
-    const newDocButton = document.getElementById("newDocButton");
-    const toggleSidebarButton = document.getElementById("toggleSidebarButton");
-    const duplicateButton = document.getElementById("duplicateButton");
-    const deleteButton = document.getElementById("deleteButton");
-    const occurrenceHighlightToggle = document.getElementById("occurrenceHighlightToggle");
-    const highlightOverflowToggle = document.getElementById("highlightOverflowToggle");
-    const countWithSpaces = document.getElementById("countWithSpaces");
-    const countWithSpacesTotal = document.getElementById("countWithSpacesTotal");
-    const countWithoutSpaces = document.getElementById("countWithoutSpaces");
-    const wordCount = document.getElementById("wordCount");
-    const maxLengthInput = document.getElementById("maxLengthInput");
-    const useCurrentCountButton = document.getElementById("useCurrentCountButton");
-    const limitHelp = document.getElementById("limitHelp");
+      let documents = loadDocuments();
+      let currentId = documents[0]?.id || null;
+      let saveTimer = null;
+      let highlightOverflowEnabled = false;
+      let sidebarOpen = false;
 
-    let documents = loadDocuments();
-    let currentId = documents[0]?.id || null;
-    let saveTimer = null;
-    let occurrenceHighlightEnabled = false;
-    let highlightOverflowEnabled = false;
-    let sidebarOpen = false;
-    let monacoEditor = null;
-    let overflowDecorations = [];
-    let isSyncingEditor = false;
-
-    if (!documents.length) {
-      const firstDoc = createDocument();
-      documents = [firstDoc];
-      currentId = firstDoc.id;
-      persistDocuments();
-    }
-
-    window.require.config({
-      paths: {
-        vs: MONACO_BASE
+      if (!documents.length) {
+        const firstDoc = createDocument();
+        documents = [firstDoc];
+        currentId = firstDoc.id;
+        persistDocuments();
       }
-    });
 
-    window.require(["vs/editor/editor.main"], () => {
-      window.monaco.editor.defineTheme("wordcounter", {
-        base: "vs",
-        inherit: true,
-        rules: [],
-        colors: {
-          "editor.background": "#00000000",
-          "editor.lineHighlightBackground": "#00000000",
-          "editorLineNumber.foreground": "#00000000",
-          "editorLineNumber.activeForeground": "#00000000",
-          "editor.selectionBackground": "#d8c5b433",
-          "editor.inactiveSelectionBackground": "#d8c5b422",
-          "editorCursor.foreground": "#2f241c"
-        }
-      });
-
-      monacoEditor = window.monaco.editor.create(editorHost, {
-        value: "",
-        language: "plaintext",
-        theme: "wordcounter",
-        minimap: {enabled: false},
-        lineNumbers: "off",
-        glyphMargin: false,
-        folding: false,
-        lineDecorationsWidth: 0,
-        lineNumbersMinChars: 0,
-        overviewRulerLanes: 0,
-        hideCursorInOverviewRuler: true,
-        renderLineHighlight: "none",
-        scrollBeyondLastLine: false,
-        quickSuggestions: false,
-        suggestOnTriggerCharacters: false,
-        wordBasedSuggestions: "off",
-        inlineSuggest: {
-          enabled: false
-        },
-        parameterHints: {
-          enabled: false
-        },
-        snippetSuggestions: "none",
-        tabCompletion: "off",
-        occurrencesHighlight: "off",
-        selectionHighlight: false,
-        wordWrap: "on",
-        wrappingIndent: "same",
-        automaticLayout: true,
-        scrollbar: {
-          alwaysConsumeMouseWheel: false
-        },
-        fontFamily: "\"Segoe UI\", \"Apple SD Gothic Neo\", sans-serif",
-        fontSize: 18,
-        lineHeight: 36,
-        padding: {
-          top: 2,
-          bottom: 2
-        }
-      });
-
-      monacoEditor.onDidChangeModelContent(() => {
-        if (isSyncingEditor) {
-          return;
-        }
-
+      // -- Editor input handling --
+      editorTextarea.addEventListener("input", () => {
         const text = getEditorText();
         updateCounts(text);
+        updateOverflowHighlight();
         touchCurrentDocument(text);
         queueSave("자동저장 대기 중...");
       });
 
-      monacoEditor.addCommand(
-        window.monaco.KeyMod.CtrlCmd | window.monaco.KeyCode.Space,
-        () => {}
-      );
+      // Sync scroll between textarea and backdrop
+      editorTextarea.addEventListener("scroll", () => {
+        editorBackdrop.scrollTop = editorTextarea.scrollTop;
+        editorBackdrop.scrollLeft = editorTextarea.scrollLeft;
+      });
 
-      render();
-    });
-
-    titleInput.addEventListener("input", () => {
-      touchCurrentDocument();
-      queueSave("자동저장 대기 중...");
-    });
-
-    window.addEventListener("resize", () => {
-      applySidebarState();
-      if (monacoEditor) {
-        monacoEditor.layout();
-      }
-    });
-
-    maxLengthInput.addEventListener("input", () => {
-      const current = getCurrentDocument();
-      if (!current) {
-        return;
-      }
-
-      const value = sanitizeLimit(maxLengthInput.value);
-      maxLengthInput.value = value ? String(value) : "";
-      current.maxLength = value;
-      applyHighlightMode();
-      updateCounts(getEditorText());
-      touchCurrentDocument();
-      queueSave(value ? "최대 글자 수가 저장되었습니다." : "글자 수 제한이 해제되었습니다.");
-    });
-
-    useCurrentCountButton.addEventListener("click", () => {
-      const current = getCurrentDocument();
-      if (!current) {
-        return;
-      }
-
-      const currentLength = getEditorText().length;
-      if (!currentLength) {
-        current.maxLength = null;
-        maxLengthInput.value = "";
-        applyHighlightMode();
-        updateCounts(getEditorText());
-        saveStatus.textContent = "현재 글이 비어 있어 최대 글자 수를 설정하지 않았습니다.";
+      titleInput.addEventListener("input", () => {
         touchCurrentDocument();
-        queueSave("글자 수 제한이 해제되었습니다.");
-        return;
-      }
+        queueSave("자동저장 대기 중...");
+      });
 
-      current.maxLength = currentLength;
-      maxLengthInput.value = String(currentLength);
-      applyHighlightMode();
-      updateCounts(getEditorText());
-      touchCurrentDocument();
-      queueSave("현재 글자 수를 최대값으로 저장했습니다.");
-    });
+      maxLengthInput.addEventListener("input", () => {
+        const current = getCurrentDocument();
+        if (!current) return;
 
-    highlightOverflowToggle.addEventListener("click", () => {
-      highlightOverflowEnabled = !highlightOverflowEnabled;
-      applyHighlightMode();
-      updateCounts(getEditorText());
-    });
+        const value = sanitizeLimit(maxLengthInput.value);
+        maxLengthInput.value = value ? String(value) : "";
+        current.maxLength = value;
+        updateOverflowHighlight();
+        updateCounts(getEditorText());
+        touchCurrentDocument();
+        queueSave(
+          value
+            ? "최대 글자 수가 저장되었습니다."
+            : "글자 수 제한이 해제되었습니다.",
+        );
+      });
 
-    occurrenceHighlightToggle.addEventListener("click", () => {
-      occurrenceHighlightEnabled = !occurrenceHighlightEnabled;
-      applyOccurrenceHighlightMode();
-    });
+      useCurrentCountButton.addEventListener("click", () => {
+        const current = getCurrentDocument();
+        if (!current) return;
 
-    toggleSidebarButton.addEventListener("click", () => {
-      sidebarOpen = !sidebarOpen;
-      applySidebarState();
-    });
-
-    sidebarBackdrop.addEventListener("click", () => {
-      sidebarOpen = false;
-      applySidebarState();
-    });
-
-    newDocButton.addEventListener("click", () => {
-      const doc = createDocument();
-      documents.unshift(doc);
-      currentId = doc.id;
-      persistDocuments();
-      render();
-      titleInput.focus();
-      saveStatus.textContent = "새 글이 생성되었습니다.";
-    });
-
-    duplicateButton.addEventListener("click", () => {
-      const current = getCurrentDocument();
-      if (!current) {
-        return;
-      }
-
-      const copy = {
-        ...current,
-        id: crypto.randomUUID(),
-        title: current.title ? current.title + " 복사본" : "복사된 자기소개서",
-        createdAt: new Date().toISOString(),
-        updatedAt: new Date().toISOString()
-      };
-
-      documents.unshift(copy);
-      currentId = copy.id;
-      persistDocuments();
-      render();
-      titleInput.focus();
-      saveStatus.textContent = "현재 글을 복제했습니다.";
-    });
-
-    deleteButton.addEventListener("click", () => {
-      if (documents.length === 1) {
-        documents = [createDocument()];
-        currentId = documents[0].id;
-      } else {
-        documents = documents.filter((doc) => doc.id !== currentId);
-        currentId = documents[0].id;
-      }
-
-      persistDocuments();
-      render();
-      saveStatus.textContent = "글을 삭제했습니다.";
-    });
-
-    function loadDocuments() {
-      try {
-        const raw = localStorage.getItem(STORAGE_KEY);
-        const parsed = raw ? JSON.parse(raw) : [];
-        if (!Array.isArray(parsed)) {
-          return [];
+        const currentLength = getEditorText().length;
+        if (!currentLength) {
+          current.maxLength = null;
+          maxLengthInput.value = "";
+          updateOverflowHighlight();
+          updateCounts(getEditorText());
+          saveStatus.textContent =
+            "현재 글이 비어 있어 최대 글자 수를 설정하지 않았습니다.";
+          touchCurrentDocument();
+          queueSave("글자 수 제한이 해제되었습니다.");
+          return;
         }
 
-        return parsed.map((doc) => ({
-          ...doc,
-          maxLength: sanitizeLimit(doc.maxLength)
-        }));
-      } catch (error) {
-        return [];
-      }
-    }
+        current.maxLength = currentLength;
+        maxLengthInput.value = String(currentLength);
+        updateOverflowHighlight();
+        updateCounts(getEditorText());
+        touchCurrentDocument();
+        queueSave("현재 글자 수를 최대값으로 저장했습니다.");
+      });
 
-    function persistDocuments() {
-      localStorage.setItem(STORAGE_KEY, JSON.stringify(documents));
-    }
+      highlightOverflowToggle.addEventListener("click", () => {
+        highlightOverflowEnabled = !highlightOverflowEnabled;
+        applyHighlightMode();
+        updateCounts(getEditorText());
+      });
 
-    function createDocument() {
-      const now = new Date();
-      return {
-        id: crypto.randomUUID(),
-        title: "새 자기소개서",
-        content: "",
-        maxLength: null,
-        createdAt: now.toISOString(),
-        updatedAt: now.toISOString()
-      };
-    }
+      toggleSidebarButton.addEventListener("click", () => {
+        sidebarOpen = !sidebarOpen;
+        applySidebarState();
+      });
 
-    function getCurrentDocument() {
-      return documents.find((doc) => doc.id === currentId) || null;
-    }
+      sidebarBackdrop.addEventListener("click", () => {
+        sidebarOpen = false;
+        applySidebarState();
+      });
 
-    function getEditorText() {
-      return monacoEditor ? monacoEditor.getValue() : "";
-    }
-
-    function setEditorText(text) {
-      if (!monacoEditor) {
-        return;
-      }
-
-      isSyncingEditor = true;
-      monacoEditor.setValue(text);
-      isSyncingEditor = false;
-    }
-
-    function touchCurrentDocument(content = getEditorText()) {
-      const current = getCurrentDocument();
-      if (!current) {
-        return;
-      }
-
-      current.title = titleInput.value.trim() || "제목 없는 자기소개서";
-      current.content = content;
-      current.updatedAt = new Date().toISOString();
-      documents.sort((a, b) => new Date(b.updatedAt) - new Date(a.updatedAt));
-      currentId = current.id;
-      renderList();
-    }
-
-    function queueSave(message) {
-      saveStatus.textContent = message;
-      window.clearTimeout(saveTimer);
-      saveTimer = window.setTimeout(() => {
+      newDocButton.addEventListener("click", () => {
+        const doc = createDocument();
+        documents.unshift(doc);
+        currentId = doc.id;
         persistDocuments();
+        render();
+        titleInput.focus();
+        saveStatus.textContent = "새 글이 생성되었습니다.";
+      });
+
+      duplicateButton.addEventListener("click", () => {
+        const current = getCurrentDocument();
+        if (!current) return;
+
+        const copy = {
+          ...current,
+          id: crypto.randomUUID(),
+          title: current.title
+            ? current.title + " 복사본"
+            : "복사된 자기소개서",
+          createdAt: new Date().toISOString(),
+          updatedAt: new Date().toISOString(),
+        };
+
+        documents.unshift(copy);
+        currentId = copy.id;
+        persistDocuments();
+        render();
+        titleInput.focus();
+        saveStatus.textContent = "현재 글을 복제했습니다.";
+      });
+
+      deleteButton.addEventListener("click", () => {
+        if (documents.length === 1) {
+          documents = [createDocument()];
+          currentId = documents[0].id;
+        } else {
+          documents = documents.filter((doc) => doc.id !== currentId);
+          currentId = documents[0].id;
+        }
+
+        persistDocuments();
+        render();
+        saveStatus.textContent = "글을 삭제했습니다.";
+      });
+
+      // -- Core Functions --
+      function loadDocuments() {
+        try {
+          const raw = localStorage.getItem(STORAGE_KEY);
+          const parsed = raw ? JSON.parse(raw) : [];
+          if (!Array.isArray(parsed)) return [];
+          return parsed.map((doc) => ({
+            ...doc,
+            maxLength: sanitizeLimit(doc.maxLength),
+          }));
+        } catch (error) {
+          return [];
+        }
+      }
+
+      function persistDocuments() {
+        localStorage.setItem(STORAGE_KEY, JSON.stringify(documents));
+      }
+
+      function createDocument() {
+        const now = new Date();
+        return {
+          id: crypto.randomUUID(),
+          title: "새 자기소개서",
+          content: "",
+          maxLength: null,
+          createdAt: now.toISOString(),
+          updatedAt: now.toISOString(),
+        };
+      }
+
+      function getCurrentDocument() {
+        return documents.find((doc) => doc.id === currentId) || null;
+      }
+
+      function getEditorText() {
+        return editorTextarea.value;
+      }
+
+      function setEditorText(text) {
+        editorTextarea.value = text;
+      }
+
+      function touchCurrentDocument(content = getEditorText()) {
+        const current = getCurrentDocument();
+        if (!current) return;
+
+        current.title = titleInput.value.trim() || "제목 없는 자기소개서";
+        current.content = content;
+        current.updatedAt = new Date().toISOString();
+        documents.sort((a, b) => new Date(b.updatedAt) - new Date(a.updatedAt));
+        currentId = current.id;
         renderList();
-        saveStatus.textContent = "방금 자동저장되었습니다.";
-      }, 500);
-    }
-
-    function render() {
-      if (!monacoEditor) {
-        return;
       }
 
-      renderEditor();
-      renderList();
-    }
-
-    function renderEditor() {
-      const current = getCurrentDocument();
-      if (!current || !monacoEditor) {
-        return;
+      function queueSave(message) {
+        saveStatus.textContent = message;
+        window.clearTimeout(saveTimer);
+        saveTimer = window.setTimeout(() => {
+          persistDocuments();
+          renderList();
+          saveStatus.textContent = "방금 자동저장되었습니다.";
+        }, 500);
       }
 
-      titleInput.value = current.title;
-      setEditorText(current.content);
-      maxLengthInput.value = current.maxLength ? String(current.maxLength) : "";
-      applyHighlightMode();
-      updateCounts(getEditorText());
-      saveStatus.textContent = "로컬에 자동저장됩니다.";
-    }
+      function render() {
+        renderEditor();
+        renderList();
+      }
 
-    function renderList() {
-      docList.innerHTML = "";
+      function renderEditor() {
+        const current = getCurrentDocument();
+        if (!current) return;
 
-      documents.forEach((doc) => {
-        const button = document.createElement("button");
-        button.type = "button";
-        button.className = "doc-card" + (doc.id === currentId ? " active" : "");
-        button.innerHTML = `
+        titleInput.value = current.title;
+        setEditorText(current.content);
+        maxLengthInput.value = current.maxLength
+          ? String(current.maxLength)
+          : "";
+        updateOverflowHighlight();
+        updateCounts(getEditorText());
+        saveStatus.textContent = "로컬에 자동저장됩니다.";
+      }
+
+      function renderList() {
+        docList.innerHTML = "";
+
+        documents.forEach((doc) => {
+          const button = document.createElement("button");
+          button.type = "button";
+          button.className =
+            "doc-card" + (doc.id === currentId ? " active" : "");
+          button.innerHTML = `
           <p class="doc-title">${escapeHtml(doc.title || "제목 없는 자기소개서")}</p>
           <p class="doc-meta">${formatDate(doc.updatedAt)} · 공백 포함 ${formatNumber((doc.content || "").length)}</p>
           <p class="doc-preview">${escapeHtml(doc.content.trim() || "아직 작성된 내용이 없습니다.")}</p>
         `;
 
-        button.addEventListener("click", () => {
-          currentId = doc.id;
-          render();
-          sidebarOpen = false;
-          applySidebarState();
-          saveStatus.textContent = "저장된 글을 불러왔습니다.";
+          button.addEventListener("click", () => {
+            currentId = doc.id;
+            render();
+            sidebarOpen = false;
+            applySidebarState();
+            saveStatus.textContent = "저장된 글을 불러왔습니다.";
+          });
+
+          docList.appendChild(button);
         });
+      }
 
-        docList.appendChild(button);
-      });
-    }
+      function updateCounts(text) {
+        const withSpaces = text.length;
+        const withoutSpacesCount = text.replace(/\s/g, "").length;
+        const words = text.trim() ? text.trim().split(/\s+/).length : 0;
+        const current = getCurrentDocument();
+        const limit = current ? sanitizeLimit(current.maxLength) : null;
 
-    function updateCounts(text) {
-      const withSpaces = text.length;
-      const withoutSpaces = text.replace(/\s/g, "").length;
-      const words = text.trim() ? text.trim().split(/\s+/).length : 0;
-      const current = getCurrentDocument();
-      const limit = current ? sanitizeLimit(current.maxLength) : null;
+        countWithSpaces.textContent = formatNumber(withSpaces);
+        countWithSpacesTotal.textContent = limit
+          ? "/" + formatNumber(limit)
+          : "";
+        countWithoutSpaces.textContent = formatNumber(withoutSpacesCount);
+        wordCount.textContent = formatNumber(words);
 
-      countWithSpaces.textContent = formatNumber(withSpaces);
-      countWithSpacesTotal.textContent = limit ? "/" + formatNumber(limit) : "";
-      countWithoutSpaces.textContent = formatNumber(withoutSpaces);
-      wordCount.textContent = formatNumber(words);
-      updateOverflowDecorations();
+        if (!limit) {
+          countWithSpaces.classList.remove("is-over-limit");
+          countWithSpacesTotal.classList.remove("is-over-limit");
+          limitHelp.textContent =
+            "공백 포함 기준입니다. 비워두면 제한하지 않습니다.";
+          limitHelp.classList.remove("warning");
+          return;
+        }
 
-      if (!limit) {
+        if (withSpaces > limit) {
+          countWithSpaces.classList.add("is-over-limit");
+          countWithSpacesTotal.classList.add("is-over-limit");
+          limitHelp.textContent =
+            "최대 글자 수를 " +
+            formatNumber(withSpaces - limit) +
+            "자 초과했습니다.";
+          limitHelp.classList.add("warning");
+          return;
+        }
+
         countWithSpaces.classList.remove("is-over-limit");
         countWithSpacesTotal.classList.remove("is-over-limit");
-        limitHelp.textContent = "공백 포함 기준입니다. 비워두면 제한하지 않습니다.";
+        limitHelp.textContent =
+          "공백 포함 기준으로 " +
+          formatNumber(limit - withSpaces) +
+          "자 남았습니다.";
         limitHelp.classList.remove("warning");
-        return;
       }
 
-      if (withSpaces > limit) {
-        countWithSpaces.classList.add("is-over-limit");
-        countWithSpacesTotal.classList.add("is-over-limit");
-        limitHelp.textContent = "최대 글자 수를 " + formatNumber(withSpaces - limit) + "자 초과했습니다.";
-        limitHelp.classList.add("warning");
-        return;
+      function updateOverflowHighlight() {
+        const current = getCurrentDocument();
+        const limit = current ? sanitizeLimit(current.maxLength) : null;
+        const text = getEditorText();
+
+        if (highlightOverflowEnabled && limit && text.length > limit) {
+          // Show the backdrop with highlighted overflow
+          const normalText = text.substring(0, limit);
+          const overflowText = text.substring(limit);
+
+          editorBackdrop.innerHTML =
+            escapeHtml(normalText) +
+            '<span class="overflow-mark">' +
+            escapeHtml(overflowText) +
+            "</span>";
+        } else {
+          editorBackdrop.innerHTML = "";
+        }
       }
 
-      countWithSpaces.classList.remove("is-over-limit");
-      countWithSpacesTotal.classList.remove("is-over-limit");
-      limitHelp.textContent = "공백 포함 기준으로 " + formatNumber(limit - withSpaces) + "자 남았습니다.";
-      limitHelp.classList.remove("warning");
-    }
-
-    function sanitizeLimit(value) {
-      if (value === "" || value === null || typeof value === "undefined") {
-        return null;
+      function sanitizeLimit(value) {
+        if (value === "" || value === null || typeof value === "undefined")
+          return null;
+        const number = Number(value);
+        if (!Number.isFinite(number) || number < 1) return null;
+        return Math.floor(number);
       }
 
-      const number = Number(value);
-      if (!Number.isFinite(number) || number < 1) {
-        return null;
+      function formatDate(isoString) {
+        const date = new Date(isoString);
+        return new Intl.DateTimeFormat("ko-KR", {
+          year: "numeric",
+          month: "short",
+          day: "numeric",
+          hour: "2-digit",
+          minute: "2-digit",
+        }).format(date);
       }
 
-      return Math.floor(number);
-    }
-
-    function formatDate(isoString) {
-      const date = new Date(isoString);
-      return new Intl.DateTimeFormat("ko-KR", {
-        year: "numeric",
-        month: "short",
-        day: "numeric",
-        hour: "2-digit",
-        minute: "2-digit"
-      }).format(date);
-    }
-
-    function formatNumber(value) {
-      return new Intl.NumberFormat("ko-KR").format(value);
-    }
-
-    function applyHighlightMode() {
-      const active = highlightOverflowEnabled;
-      highlightOverflowToggle.classList.toggle("active", active);
-      highlightOverflowToggle.setAttribute("aria-pressed", active ? "true" : "false");
-      updateOverflowDecorations();
-    }
-
-    function applyOccurrenceHighlightMode() {
-      const active = occurrenceHighlightEnabled;
-      occurrenceHighlightToggle.classList.toggle("active", active);
-      occurrenceHighlightToggle.setAttribute("aria-pressed", active ? "true" : "false");
-      if (!monacoEditor) {
-        return;
+      function formatNumber(value) {
+        return new Intl.NumberFormat("ko-KR").format(value);
       }
 
-      monacoEditor.updateOptions({
-        occurrencesHighlight: active ? "singleFile" : "off",
-        selectionHighlight: active
-      });
-    }
-
-    function updateOverflowDecorations() {
-      if (!monacoEditor || !window.monaco) {
-        return;
+      function applyHighlightMode() {
+        const active = highlightOverflowEnabled;
+        highlightOverflowToggle.classList.toggle("active", active);
+        highlightOverflowToggle.setAttribute(
+          "aria-pressed",
+          active ? "true" : "false",
+        );
+        updateOverflowHighlight();
       }
 
-      const current = getCurrentDocument();
-      const limit = current ? sanitizeLimit(current.maxLength) : null;
-      const model = monacoEditor.getModel();
-      if (!model) {
-        return;
+      function applySidebarState() {
+        const mobile = window.innerWidth < 1250;
+        const active = mobile && sidebarOpen;
+        sidebar.classList.toggle("is-open", active);
+        sidebarBackdrop.classList.toggle("is-open", active);
+        toggleSidebarButton.classList.toggle("active", active);
+        toggleSidebarButton.setAttribute(
+          "aria-pressed",
+          active ? "true" : "false",
+        );
       }
 
-      const nextDecorations = [];
-      if (highlightOverflowEnabled && limit && model.getValueLength() > limit) {
-        const start = model.getPositionAt(limit);
-        const end = model.getPositionAt(model.getValueLength());
-        nextDecorations.push({
-          range: new window.monaco.Range(start.lineNumber, start.column, end.lineNumber, end.column),
-          options: {
-            inlineClassName: "cm-overflowText"
-          }
-        });
+      function escapeHtml(value) {
+        return value
+          .replace(/&/g, "&amp;")
+          .replace(/</g, "&lt;")
+          .replace(/>/g, "&gt;")
+          .replace(/"/g, "&quot;")
+          .replace(/'/g, "&#39;");
       }
 
-      overflowDecorations = monacoEditor.deltaDecorations(overflowDecorations, nextDecorations);
-    }
-
-    function applySidebarState() {
-      const mobile = window.innerWidth < 1250;
-      const active = mobile && sidebarOpen;
-      sidebar.classList.toggle("is-open", active);
-      sidebarBackdrop.classList.toggle("is-open", active);
-      toggleSidebarButton.classList.toggle("active", active);
-      toggleSidebarButton.setAttribute("aria-pressed", active ? "true" : "false");
-    }
-
-    function escapeHtml(value) {
-      return value
-        .replace(/&/g, "&amp;")
-        .replace(/</g, "&lt;")
-        .replace(/>/g, "&gt;")
-        .replace(/"/g, "&quot;")
-        .replace(/'/g, "&#39;");
-    }
-
-    applySidebarState();
-    applyOccurrenceHighlightMode();
-  </script>
-</body>
+      applySidebarState();
+      render();
+    </script>
+  </body>
 </html>
